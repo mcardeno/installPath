@@ -147,7 +147,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .gd{flex:0 0 auto;font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
 .gtrack{flex:1;position:relative;min-width:0}
 .itick{position:absolute;top:5px;width:4px;height:16px;margin-left:-2px;background:var(--actual);border-radius:2px}
-.grow2.hist{background:var(--faint)} .glab.hl{cursor:default} .glab.hl:hover .gn{color:inherit;text-decoration:none}
+.grow2.hist{background:var(--faint)}
+.grow2.orig{background:var(--faint);height:24px} .grow2.orig .gn{font-weight:400;font-size:13px;padding-left:12px} .grow2.orig .itick{top:4px;height:14px}
+.obar{position:absolute;top:6px;height:12px;border:1.5px dashed var(--base);border-radius:5px;background:transparent} .glab.hl{cursor:default} .glab.hl:hover .gn{color:inherit;text-decoration:none}
 .grow2 .gbar{top:4px;height:14px} .grow2 .bbar{top:20px;height:4px}
 .mgrid{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);opacity:.6}
 .loadbox{border-top:1px dashed var(--line);border-radius:0 0 12px 12px;padding:8px 0 4px}
@@ -213,7 +215,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 </div>
 <main>
   <section class="view on" id="v-sched">
-    <div class="toolbar"><input type="text" id="q" placeholder="Filter rows (SWBS, tag, name)" style="min-width:16em"><span class="note">Drag a bar to move it, drag its right end to stretch it. Tap a row name to edit its dates and tags. Blue = editable.</span></div>
+    <div class="toolbar"><input type="text" id="q" placeholder="Filter rows (SWBS, tag, name)" style="min-width:16em"><label class="choice"><input type="checkbox" id="showOrig"> Show original plan for installed work</label><span class="note">Drag a bar to move it, drag its right end to stretch it. Tap a row name to edit its dates and tags. Blue = editable.</span></div>
     <div class="gwrap"><div class="ginner">
       <div class="gantt" id="gantt"></div>
       <div class="chart loadbox"><h3>Weekly loading vs technician capacity <span class="note">same dates as the timeline above</span></h3><div class="legend"><span><i class="sw box" style="background:var(--bar)"></i>Hours needed</span><span><i class="sw box" style="background:var(--ot)"></i>Overtime</span><span><i class="sw" style="border-color:var(--ink)"></i>Capacity</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cLoad" height="240"></canvas><div class="tip"></div></div>
@@ -261,7 +263,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 <script>
 "use strict";
-const BUILD="Rev 0.1";
+const BUILD="Rev 0.2";
 /* ============ dates & calendar ============ */
 const DAY=86400000;
 const isoToDn=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));return m?Date.UTC(+m[1],m[2]-1,+m[3])/DAY:null};
@@ -554,7 +556,12 @@ function renderGantt(){
   const deco=trackDeco(false);
   let h=`<div class="gbody" id="gbody"><div class="ghead"><div class="glab">Row · install window</div><div class="gtrack trackhead">${trackDeco(true)}</div></div>`;
   {const it=S.tags.filter(t=>t.status==='Installed'&&t.inst!=null);const ds=[...new Set(it.map(t=>t.inst))];const hrs=it.reduce((a,t)=>a+hoursOf(S,t),0);
-   h+=`<div class="grow2 hist"><div class="glab hl" title="Tags marked installed, at their install dates"><span class="gn">Installed to date</span><span class="gd">${it.length} tags · ${nf(hrs)} h</span></div><div class="gtrack track">${deco}${ds.map(d=>`<div class="itick" style="left:${pct(d)}" title="${fmt(d)}: ${it.filter(t=>t.inst===d).length} tag(s)"></div>`).join('')}</div></div>`}
+   const showO=document.getElementById('showOrig')?.checked;
+   h+=`<div class="grow2 hist"><div class="glab hl" title="Tags marked installed, at their install dates"><span class="gn">Installed to date</span><span class="gd">${it.length} tags · ${nf(hrs)} h</span></div><div class="gtrack track">${deco}${ds.map(d=>`<div class="itick" style="left:${pct(d)}" title="${fmt(d)}: ${it.filter(t=>t.inst===d).length} tag(s)"></div>`).join('')}</div></div>`;
+   if(showO){const by={};for(const t of it)(by[t.swbs]??=[]).push(t);
+     for(const sw of Object.keys(by).sort((a,b)=>Math.min(...by[a].map(t=>t.inst))-Math.min(...by[b].map(t=>t.inst))||a.localeCompare(b))){const ts=by[sw];if(q&&!sw.toLowerCase().includes(q)&&!ts.some(t=>t.tag.toLowerCase().includes(q)))continue;
+       const wins=ts.filter(t=>t.oStart!=null&&t.oFinish!=null);const a=wins.length?Math.min(...wins.map(t=>t.oStart)):null,b=wins.length?Math.max(...wins.map(t=>t.oFinish)):null;const lastA=Math.max(...ts.map(t=>t.inst));
+       h+=`<div class="grow2 orig"><div class="glab hl" title="${esc(sw)}: ${ts.length} installed tag(s). Faint bar = original planned window; green marks = actual install dates"><span class="gn">${esc(sw.replace(/\s*\(.*\)$/,''))}</span><span class="gd">${ts.length} done${b!=null?` · <span class="delta ${lastA<=b?'dn':'up'}">${lastA<=b?'early':'late'}</span>`:''}</span></div><div class="gtrack track">${deco}${a!=null?`<div class="obar" style="left:${pct(a)};width:calc(${pct(b+1)} - ${pct(a)})" title="Original plan ${fmt(a)} – ${fmt(b)}"></div>`:''}${[...new Set(ts.map(t=>t.inst))].map(d=>`<div class="itick" style="left:${pct(d)}" title="${fmt(d)}: ${ts.filter(t=>t.inst===d).length} tag(s) installed"></div>`).join('')}</div></div>`}}}
   for(const r of S.rows){const c=C.rows[r.id];if(!rowMatches(r,q,tagsBy[r.id]||[]))continue;const done=c.done;const dl=c.ef-r.bFinish;
     h+=`<div class="grow2${done?' done':''}" data-id="${r.id}"><div class="glab" title="${esc(r.name)} · ${fmt(c.es)} – ${fmt(c.ef)}${c.pushed?' · held by '+esc(c.why):''}"><span class="gn">${esc(r.name)}</span><span class="gd">${done?'done':fmt(c.es)+'–'+fmt(c.ef)}${!done&&dl?` <span class="delta ${dl>0?'up':'dn'}">${dl>0?'+':'−'}${Math.abs(dl)}d</span>`:''}</span></div>
       <div class="gtrack track">${deco}<div class="bbar" style="left:${pct(r.bStart)};width:calc(${pct(r.bFinish+1)} - ${pct(r.bStart)})"></div><div class="gbar${c.pushed?' pushed':''}${done?' donebar':''}" style="left:${pct(c.es)};width:calc(${pct(c.ef+1)} - ${pct(c.es)})" title="${esc(r.name)}: ${fmt(c.es)} – ${fmt(c.ef)}">${done?'':'<div class="h"></div>'}</div></div></div>`}
@@ -988,7 +995,9 @@ function theme(t){if(t)document.documentElement.setAttribute('data-theme',t);try
   const gantt=document.getElementById('gantt');gantt.addEventListener('pointerdown',onDown);
   gantt.addEventListener('click',e=>{const l=e.target.closest('.grow2 .glab');if(!l)return;const id=l.parentElement.dataset.id;if(!id)return;OPEN.add(id);document.getElementById('q').value='';renderGantt();renderGrid();const tr=document.querySelector(`#grid tr.grow[data-id="${id}"]`);if(tr){tr.scrollIntoView({behavior:'smooth',block:'center'});tr.classList.add('flash');setTimeout(()=>tr.classList.remove('flash'),1600)}});window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
   document.getElementById('partsT').addEventListener('change',e=>{if(e.target.classList.contains('iPart'))setPart(e.target.dataset.part,e.target.value)});
-  document.getElementById('q').addEventListener('input',()=>{renderGantt();renderGrid()});document.getElementById('pq').addEventListener('input',renderParts);
+  document.getElementById('q').addEventListener('input',()=>{renderGantt();renderGrid()});
+  const so=document.getElementById('showOrig');try{so.checked=localStorage.getItem('installpath.showOrig')==='1'}catch(e){}
+  so.addEventListener('change',()=>{try{localStorage.setItem('installpath.showOrig',so.checked?'1':'0')}catch(e){}if(S){renderGantt();renderCharts()}});document.getElementById('pq').addEventListener('input',renderParts);
   const at=document.getElementById('aheadTo');at.value=dnToIso(TODAY+14);at.min=dnToIso(TODAY);at.onchange=()=>{renderLists();renderTop()};
   document.querySelector('#v-ahead .toolbar').addEventListener('click',e=>{const b=e.target.closest('[data-ah]');if(!b)return;const v=b.dataset.ah;let d;if(v==='eom'){const t=new Date(TODAY*DAY);d=Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)/DAY}else d=TODAY+(+v);at.value=dnToIso(d);renderLists();renderTop()});
   for(const id of['aheadList','lateList'])document.getElementById(id).addEventListener('click',e=>{const b=e.target.closest('[data-item]');if(!b)return;const k=b.dataset.item;openUpdate(LISTS[k[0]][+k.slice(1)],false)});
