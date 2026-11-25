@@ -1,4 +1,6 @@
-# Install Path — brief (Rev 0.0, first publish 2026-11-25)
+# Install Path — brief (Rev 0.1, 2026-11-25)
+
+History: Rev 0.0 first published to GitHub Pages (public repo installPath) 2026-11-25. Rev 0.1 adds the Microsoft Project Export, full-scope S-curves, one project-long time axis and shorter S-curves.
 
 ## What it is
 A what-if board for the lab installation schedule, shown on a big screen in meetings. Move work around, change hours, slip deliveries or change the technician count, and see the finish date, weekly loading and S-curves update straight away against the Baseline. Separate app from Schedule Path.
@@ -9,23 +11,26 @@ The Baseline is the schedule as first issued to the team. (Internal note: it was
 - One file: `index.html`. No outside libraries (Excel and PDF are read and written by the page itself). Fonts from Google Fonts (falls back to system fonts offline).
 - Published with no project data. The user opens the data file (.xlsx) in the browser; nothing is uploaded. The last session is kept in this browser (localStorage) so it can be continued.
 - `?today=YYYY-MM-DD` in the address overrides "today" (testing or rehearsing a future meeting).
-- Opening "Install Path - Data - 2026-11-25.xlsx" and downloading the Schedule Summary with no changes reproduces the reference report "Install Path - Schedule Summary - 2026-11-25 0636.pdf" (only the generated time and the Today line differ).
+- Opening "Install Path - Data - 2026-11-25.xlsx" and downloading the Schedule Summary with no changes reproduces the reference report "Install Path - Schedule Summary - 2026-11-25 0713.pdf" (only the generated time and the Today line differ).
 
 ## Two copies, one source
 - `index.html` (GitHub Pages) is the source. The phone/claude.ai artifact (https://claude.ai/artifact/8hJ9fx1ipe9ZHvRtxxmkPK, private) is generated from it by stripping the html/head/body wrapper; the code is identical. Every update: change `index.html`, regenerate and republish the artifact, upload `index.html` to GitHub.
-- Both show the same revision label in the header ("Rev 0.0"). The label changes only when an update is published to both copies, never for work in progress; matching labels = in sync. Revision numbers change only at milestones.
+- Both show the same revision label in the header ("Rev 0.1"). The label changes only when an update is published to both copies, never for work in progress; matching labels = in sync. Revision numbers change only at milestones.
 - Data is not synced between devices (decided 2026-11-25): each device opens the data file, and the Save as file carries a meeting's changes from one device to another.
 - In the artifact, saving goes through the claude.ai save prompt (the `downloads` capability); on GitHub Pages files download or use the browser's save dialog.
 
 ## Data file (tabs)
-Settings · Milestones (NAV = navigation consoles 2027-04-15, FDCR 2027-05-19) · Rows (54: 27 system windows + 27 consoles/racks) · Tags (249, with part number, Row ID, baseline status, status, actuals, forecasts, comment, Task ID) · Parts (158 part numbers, baseline hours and hours) · Calendar (BC statutory + company holidays and shutdowns) · Changes.
+Settings · Milestones (NAV = navigation consoles 2027-04-15, FDCR 2027-05-19) · Rows (54: 27 system windows + 27 consoles/racks) · Tags (249, with part number, Row ID, baseline status, status, actuals, forecasts, original planned window for tags already installed, comment, Task ID) · Parts (158 part numbers, baseline hours and hours) · Calendar (BC statutory + company holidays and shutdowns) · Changes.
 "Baseline" columns hold the Baseline and are never changed by the app. The Save as file writes the same tabs back (plus output tabs), so it reopens and carries on with the same Baseline.
 
-## Screen and files (Rev 0.0)
+## Screen and files
 - Schedule tab: full-width timeline (one bar per row, faint Baseline bar under each) with the weekly loading chart directly underneath on exactly the same dates; S-curves below; the rows table (dates, hours, tags) below that. Tapping a row name in the timeline jumps to that row in the table with its tags open. On a phone the timeline and loading scroll sideways together.
 - Milestones (navigation consoles and FDCR deliveries) are always marked as milestones: ◆ diamond, orange, labelled "Milestone: …", on screen, on the timeline and charts, and in a "Milestones" group on the Schedule Summary.
 - Open… opens a data file or a saved working file. Save as… writes the working file (.xlsx that reopens; Chrome/Edge show a save dialog, other browsers download it; in the artifact the claude.ai save prompt). Ctrl/Cmd+S also saves.
 - Download… is for reports: Schedule Summary (one landscape PDF page: key figures, milestones, timeline, loading on the same dates) and/or Full report (key figures + loading, S-curves, what changed).
+- All charts and the timeline share one time axis covering the whole project: from the first install in autumn 2026 to the last in September 2027. The timeline's first row, "Installed to date", marks each install date of finished tags. The loading chart shows remaining work from the first week that has any.
+- S-curves cover all 249 tags. Baseline line = finished tags on their original planned windows + remaining work on the Baseline windows, so planned vs actual is visible for the work already done (at Nov 25, 2026: about 744 h planned vs 891 h installed). Actual = finished tags at their installed dates. Forecast = actual + remaining work as currently planned. S-curves are short and side by side on wide screens.
+- Microsoft Project Export (header button): an .xlsx for Project's import wizard. Read Me (import steps and assumptions), Tasks (Outline Level 1 SWBS + a Milestones group, 2 tag, 3 steps Request/Receive/Install/Engineer Reviewed; Duration, Predecessors with calendar-day lags, Constraint Type/Date, Actual Start/Finish, % Complete, Milestone, Text1 fixed task ID, Start1/Finish1 = Install Path dates, Baseline Start/Finish, Number1 = install hours, Notes), Calendar (non-working dates to enter in Project). Assumptions to confirm with the team: desktop Project 2016+ / Project for Microsoft 365; calendar entered by hand. No resources yet (step 2), no cable milestone yet.
 - Unsaved changes: shown in the header; closing the tab or opening another file with unsaved changes asks first. The browser also keeps the last session, but the saved file is the real backup (incognito keeps nothing).
 
 ## Decisions (from the planning conversation)
@@ -42,6 +47,6 @@ Settings · Milestones (NAV = navigation consoles 2027-04-15, FDCR 2027-05-19) �
 - Look: Penpath style — flat background, outline-only, blue outlines for controls only, Lato with a serif wordmark; day and night modes.
 - Console cables are not a milestone in this app (status still being discussed with the team).
 
-## Not in Rev 0.0 / ideas
+## Not yet / ideas
 - "Set current as new baseline" option.
 - Partial progress (%) on long installs.

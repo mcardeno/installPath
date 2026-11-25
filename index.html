@@ -146,6 +146,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .gn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
 .gd{flex:0 0 auto;font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
 .gtrack{flex:1;position:relative;min-width:0}
+.itick{position:absolute;top:5px;width:4px;height:16px;margin-left:-2px;background:var(--actual);border-radius:2px}
+.grow2.hist{background:var(--faint)} .glab.hl{cursor:default} .glab.hl:hover .gn{color:inherit;text-decoration:none}
 .grow2 .gbar{top:4px;height:14px} .grow2 .bbar{top:20px;height:4px}
 .mgrid{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);opacity:.6}
 .loadbox{border-top:1px dashed var(--line);border-radius:0 0 12px 12px;padding:8px 0 4px}
@@ -191,6 +193,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   <button class="btn" id="load">Open…</button>
   <button class="btn" id="saveas">Save as…</button>
   <button class="btn" id="dl">Download…</button>
+  <button class="btn" id="msp" title="Excel file for the Microsoft Project import wizard">Microsoft Project Export</button>
   <button class="btn icon" id="theme" title="Day / night">☀︎ / ☾</button>
 </header>
 <div class="bar2">
@@ -216,8 +219,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
       <div class="chart loadbox"><h3>Weekly loading vs technician capacity <span class="note">same dates as the timeline above</span></h3><div class="legend"><span><i class="sw box" style="background:var(--bar)"></i>Hours needed</span><span><i class="sw box" style="background:var(--ot)"></i>Overtime</span><span><i class="sw" style="border-color:var(--ink)"></i>Capacity</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cLoad" height="240"></canvas><div class="tip"></div></div>
     </div></div>
     <div class="curves">
-      <div class="chart"><h3>S-curve by install hours</h3><div class="legend"><span><i class="sw" style="border-color:var(--actual)"></i>Actual</span><span><i class="sw" style="border-color:var(--forecast)"></i>Forecast</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cHrs" height="250"></canvas><div class="tip"></div></div>
-      <div class="chart"><h3>S-curve by tags installed</h3><div class="legend"><span><i class="sw" style="border-color:var(--actual)"></i>Actual</span><span><i class="sw" style="border-color:var(--forecast)"></i>Forecast</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cTags" height="250"></canvas><div class="tip"></div></div>
+      <div class="chart"><h3>S-curve by install hours</h3><div class="legend"><span><i class="sw" style="border-color:var(--actual)"></i>Actual</span><span><i class="sw" style="border-color:var(--forecast)"></i>Forecast</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cHrs" height="175"></canvas><div class="tip"></div></div>
+      <div class="chart"><h3>S-curve by tags installed</h3><div class="legend"><span><i class="sw" style="border-color:var(--actual)"></i>Actual</span><span><i class="sw" style="border-color:var(--forecast)"></i>Forecast</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cTags" height="175"></canvas><div class="tip"></div></div>
     </div>
     <h3 class="sect">Rows: dates, hours and tags</h3>
     <div class="tablewrap"><table id="grid"></table></div>
@@ -258,7 +261,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 <script>
 "use strict";
-const BUILD="Rev 0.0";
+const BUILD="Rev 0.1";
 /* ============ dates & calendar ============ */
 const DAY=86400000;
 const isoToDn=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));return m?Date.UTC(+m[1],m[2]-1,+m[3])/DAY:null};
@@ -380,7 +383,7 @@ function parseWorkbook(sh){
   const milestones={};for(const r of rowsOf(sh.Milestones)){const id=toStr(r.ID);if(!id)continue;milestones[id]={id,name:toStr(r.Milestone),base:toDn(r['Baseline Date']),date:toDn(r.Date)??toDn(r['Baseline Date'])}}
   const rows=rowsOf(sh.Rows).filter(r=>toStr(r['Row ID'])).map(r=>({id:toStr(r['Row ID']),name:toStr(r.Row),swbs:toStr(r.SWBS),type:toStr(r.Type),ms:toStr(r.Milestone),bStart:toDn(r['Baseline Start']),bFinish:toDn(r['Baseline Finish']),start:toDn(r.Start)??toDn(r['Baseline Start']),finish:toDn(r.Finish)??toDn(r['Baseline Finish']),comment:toStr(r.Comment)}));
   const normS=s=>{s=toStr(s);if(/^ins(t)?alled$/i.test(s))return'Installed';const f=STATUSES.find(x=>x.toLowerCase()===s.toLowerCase());return f||'Not Started'};
-  const tags=rowsOf(sh.Tags).filter(r=>toStr(r.Tag)).map((r,i)=>({tid:toStr(r['Task ID'])||('T'+String(i+1).padStart(3,'0')),tag:toStr(r.Tag),name:toStr(r['Tag Name']),swbs:toStr(r.SWBS),phase:toNum(r.Phase),part:toStr(r['Part Number']),row:toStr(r['Row ID']),bStatus:normS(r['Baseline Status']??r.Status),status:normS(r.Status),req:toDn(r['Requested (Actual)']),recv:toDn(r['Received (Actual)']),inst:toDn(r['Installed (Actual)']),rev:toDn(r['Engineer Reviewed (Actual)']),fReq:toDn(r['Requested (Forecast)']),fRecv:toDn(r['Received (Forecast)']),fRev:toDn(r['Engineer Reviewed (Forecast)']),comment:toStr(r.Comment)}));
+  const tags=rowsOf(sh.Tags).filter(r=>toStr(r.Tag)).map((r,i)=>({tid:toStr(r['Task ID'])||('T'+String(i+1).padStart(3,'0')),tag:toStr(r.Tag),name:toStr(r['Tag Name']),swbs:toStr(r.SWBS),phase:toNum(r.Phase),part:toStr(r['Part Number']),row:toStr(r['Row ID']),bStatus:normS(r['Baseline Status']??r.Status),status:normS(r.Status),req:toDn(r['Requested (Actual)']),recv:toDn(r['Received (Actual)']),inst:toDn(r['Installed (Actual)']),rev:toDn(r['Engineer Reviewed (Actual)']),fReq:toDn(r['Requested (Forecast)']),fRecv:toDn(r['Received (Forecast)']),fRev:toDn(r['Engineer Reviewed (Forecast)']),oStart:toDn(r['Original Planned Start']),oFinish:toDn(r['Original Planned Finish']),comment:toStr(r.Comment)}));
   const parts={};for(const r of rowsOf(sh.Parts)){const pn=toStr(r['Part Number']);if(!pn)continue;const b=toNum(r['Baseline Hours'])??toNum(r.Hours)??0;parts[pn]={pn,bHours:b,hours:toNum(r.Hours)??b}}
   const cal=rowsOf(sh.Calendar).map(r=>({dn:toDn(r.Date),reason:toStr(r.Reason)})).filter(c=>c.dn!=null);
   const changes=sh.Changes?rowsOf(sh.Changes).map(r=>({when:toStr(r.When),action:toStr(r.Action),item:toStr(r.Item),field:toStr(r.Field),from:toStr(r.From),to:toStr(r.To),comment:toStr(r.Comment)})):[];
@@ -435,7 +438,7 @@ function compute(St){
     R.rows[r.id]={es,ef,dur,pushed,why,rem:rem.length,all:ts.length,hrs,review:rv,done:rem.length===0&&ts.length>0};
     R.remHours+=hrs;R.remTags+=rem.length;
   }
-  for(const t of St.tags)if(t.status==='Installed'){R.tags[t.tag]={req:t.req,reqK:'actual',recv:t.recv,recvK:'actual',start:null,finish:t.inst,review:t.rev??t.fRev??nextWork(Math.max(st.revFloor,t.inst+st.revGap)),revK:t.rev!=null?'actual':t.fRev!=null?'forecast':'plan',row:t.row,installed:true};R.install.push([t.inst,hoursOf(St,t)])}
+  for(const t of St.tags)if(t.status==='Installed'){R.tags[t.tag]={req:t.req,reqK:'actual',recv:t.recv,recvK:'actual',start:null,finish:t.inst,review:t.rev??t.fRev??nextWork(Math.max(st.revFloor,t.inst+st.revGap)),revK:t.rev!=null?'actual':t.fRev!=null?'forecast':'plan',row:t.row,installed:true};R.install.push([t.inst,hoursOf(St,t),t])}
   // weekly
   const all=new Map(R.load);for(const[d,h]of R.paper)all.set(d,(all.get(d)||0)+h);
   R.daily=all;R.weeks=new Map();for(const[d,h]of all){const m=monday(d);R.weeks.set(m,(R.weeks.get(m)||0)+h)}
@@ -485,7 +488,8 @@ function start(L,name,restoreS){
 function setTimeline(){
   let a=Infinity,b=-Infinity;for(const r of S.rows){a=Math.min(a,r.bStart,r.start);b=Math.max(b,r.bFinish,r.finish)}
   for(const m of Object.values(S.milestones)){a=Math.min(a,m.date,m.base);b=Math.max(b,m.date,m.base)}
-  TL.a=a-10;TL.b=b+21;
+  for(const t of S.tags){if(t.inst!=null)a=Math.min(a,t.inst);if(t.oStart!=null)a=Math.min(a,t.oStart)}
+  TL.a=monday(a)-7;TL.b=b+21;
 }
 const TL={a:0,b:1};
 const pct=d=>((d-TL.a)/(TL.b-TL.a+1)*100).toFixed(3)+'%';
@@ -549,6 +553,8 @@ function renderGantt(){
   const tagsBy={};for(const t of S.tags)(tagsBy[t.row]??=[]).push(t);
   const deco=trackDeco(false);
   let h=`<div class="gbody" id="gbody"><div class="ghead"><div class="glab">Row · install window</div><div class="gtrack trackhead">${trackDeco(true)}</div></div>`;
+  {const it=S.tags.filter(t=>t.status==='Installed'&&t.inst!=null);const ds=[...new Set(it.map(t=>t.inst))];const hrs=it.reduce((a,t)=>a+hoursOf(S,t),0);
+   h+=`<div class="grow2 hist"><div class="glab hl" title="Tags marked installed, at their install dates"><span class="gn">Installed to date</span><span class="gd">${it.length} tags · ${nf(hrs)} h</span></div><div class="gtrack track">${deco}${ds.map(d=>`<div class="itick" style="left:${pct(d)}" title="${fmt(d)}: ${it.filter(t=>t.inst===d).length} tag(s)"></div>`).join('')}</div></div>`}
   for(const r of S.rows){const c=C.rows[r.id];if(!rowMatches(r,q,tagsBy[r.id]||[]))continue;const done=c.done;const dl=c.ef-r.bFinish;
     h+=`<div class="grow2${done?' done':''}" data-id="${r.id}"><div class="glab" title="${esc(r.name)} · ${fmt(c.es)} – ${fmt(c.ef)}${c.pushed?' · held by '+esc(c.why):''}"><span class="gn">${esc(r.name)}</span><span class="gd">${done?'done':fmt(c.es)+'–'+fmt(c.ef)}${!done&&dl?` <span class="delta ${dl>0?'up':'dn'}">${dl>0?'+':'−'}${Math.abs(dl)}d</span>`:''}</span></div>
       <div class="gtrack track">${deco}<div class="bbar" style="left:${pct(r.bStart)};width:calc(${pct(r.bFinish+1)} - ${pct(r.bStart)})"></div><div class="gbar${c.pushed?' pushed':''}${done?' donebar':''}" style="left:${pct(c.es)};width:calc(${pct(c.ef+1)} - ${pct(c.es)})" title="${esc(r.name)}: ${fmt(c.es)} – ${fmt(c.ef)}">${done?'':'<div class="h"></div>'}</div></div></div>`}
@@ -604,15 +610,17 @@ function seriesData(St,R){
   const inst=R.install.slice().sort((a,b)=>a[0]-b[0]);
   return{inst,load:R.load,rows:R.rows,tagsFin:St.tags.filter(t=>t.status!=='Installed').map(t=>R.tags[t.tag]?.finish).filter(x=>x!=null)};
 }
-function cumul(x0,x1,R,St,mode){ // mode 'hrs'|'tags'
-  const out=[];const inst=new Map();for(const[d,h]of R.install){const k=Math.max(d,x0);inst.set(k,(inst.get(k)||0)+(mode==='hrs'?h:1))}
-  const plan=new Map();if(mode==='hrs'){for(const[d,h]of R.load)plan.set(d,(plan.get(d)||0)+h)}else{for(const t of St.tags)if(t.status!=='Installed'){const f=R.tags[t.tag]?.finish;if(f!=null)plan.set(f,(plan.get(f)||0)+1)}}
+function cumul(x0,x1,R,St,mode,orig){ // mode 'hrs'|'tags'; orig: done tags on their original planned window (Baseline)
+  const out=[];const inst=new Map();const plan=new Map();const addp=(d,v)=>{const k=Math.max(d,x0);plan.set(k,(plan.get(k)||0)+v)};
+  for(const[d,h,t]of R.install){
+    if(orig&&t&&t.oStart!=null&&t.oFinish!=null){if(mode==='hrs'){const ds=[];for(let x=t.oStart;x<=t.oFinish;x++)if(isWork(x))ds.push(x);if(!ds.length)ds.push(t.oFinish);ds.forEach(x=>addp(x,h/ds.length))}else addp(t.oFinish,1);continue}
+    const k=Math.max(d,x0);inst.set(k,(inst.get(k)||0)+(mode==='hrs'?h:1))}
+if(mode==='hrs'){for(const[d,h]of R.load)plan.set(d,(plan.get(d)||0)+h)}else{for(const t of St.tags)if(t.status!=='Installed'){const f=R.tags[t.tag]?.finish;if(f!=null)plan.set(f,(plan.get(f)||0)+1)}}
   let a=0,p=0;for(let d=x0;d<=x1;d++){a+=inst.get(d)||0;p+=plan.get(d)||0;out.push([d,a,a+p])}
-  // anything before x0 in plan
   return out;
 }
 function niceMax(v){if(v<=0)return 1;const e=Math.pow(10,Math.floor(Math.log10(v)));const m=v/e;for(const k of[1,1.5,2,2.5,3,4,5,6,7.5,8,10])if(m<=k+1e-9)return k*e;return 10*e}
-function setupCanvas(cv,W,H){const dpr=window.devicePixelRatio||1;if(W==null){W=cv.clientWidth||600;H=+cv.getAttribute('height');if(window.innerWidth<700)H=Math.min(H,220)}cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,W,H}}
+function setupCanvas(cv,W,H){const dpr=window.devicePixelRatio||1;if(W==null){W=cv.clientWidth||600;H=+cv.getAttribute('height');if(window.innerWidth<700)H=Math.min(H,200)}cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,W,H}}
 function axes(ctx,W,H,P,x0,x1,ymax,p,fs,yfmt){
   const L=P.l,T=P.t,Wd=W-P.l-P.r,Hd=H-P.t-P.b;ctx.font=`${fs}px Lato, sans-serif`;ctx.fillStyle=p.ink2;ctx.strokeStyle=p.line;ctx.lineWidth=1;ctx.textAlign='right';ctx.textBaseline='middle';
   for(let i=0;i<=4;i++){const v=ymax*i/4,y=T+Hd-Hd*i/4;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(L+Wd,y);ctx.stroke();ctx.fillText(yfmt(v),L-6,y)}
@@ -631,14 +639,13 @@ const CH={};
 function drawS(cv,mode,o){
   o=o||{};const p=pal(o.theme);const {ctx,W,H}=setupCanvas(cv,o.W,o.H);const fs=o.fs||13;
   ctx.fillStyle=p.bg;ctx.fillRect(0,0,W,H);
-  const firstAct=Math.min(...C.install.map(x=>x[0]),...BC.install.map(x=>x[0]),TODAY);
-  const x0=firstAct-7,x1=Math.max(C.finish||TODAY,BC.finish||TODAY)+10;
-  const cur=cumul(x0,x1,C,S,mode),bas=cumul(x0,x1,BC,BASE,mode);
+  const x0=TL.a,x1=TL.b+1;
+  const cur=cumul(x0,x1,C,S,mode),bas=cumul(x0,x1,BC,BASE,mode,true);
   const tot=Math.max(cur[cur.length-1][2],bas[bas.length-1][2]);const ymax=niceMax(tot*1.05);
   const A=axes(ctx,W,H,{l:fs*4.2,r:12,t:10,b:fs*2.2},x0,x1,ymax,p,fs,v=>mode==='hrs'?nf(v):String(Math.round(v)));
   shadeShut(ctx,A,x0,x1,p);
   const step=(x1-x0)>300?2:1;const smp=a=>a.filter((x,i)=>i%step===0||i===a.length-1);
-  path(ctx,A,smp(bas.filter(x=>x[0]>=Math.min(TODAY,BASE.settings.statusDate))).map(x=>[x[0],x[2]]),p.base,2,[7,5]);
+  path(ctx,A,smp(bas).map(x=>[x[0],x[2]]),p.base,2,[7,5]);
   path(ctx,A,smp(cur.filter(x=>x[0]>=TODAY)).map(x=>[x[0],x[2]]),p.forecast,2.4);
   path(ctx,A,cur.filter(x=>x[0]<=TODAY).map(x=>[x[0],x[1]]),p.actual,3);
   vmark(ctx,A,TODAY,'Today',p.late,fs-1,false,0);
@@ -650,11 +657,12 @@ function drawLoad(cv,o){
   o=o||{};const p=pal(o.theme);const {ctx,W,H}=setupCanvas(cv,o.W,o.H);const fs=o.fs||13;ctx.fillStyle=p.bg;ctx.fillRect(0,0,W,H);
   const x0=o.x0??TL.a,x1=o.x1??TL.b+1;
   const m0=monday(x0),m1=monday(x1);
-  const weeks=[];for(let m=m0;m<=m1;m+=7)weeks.push({m,h:C.weeks.get(m)||0,b:BC.weeks.get(m)||0,cap:capWeek(S,m),bcap:capWeek(BASE,m)});
+  const wks=[...C.weeks.keys(),...BC.weeks.keys()];const wFrom=Math.max(m0,wks.length?monday(Math.min(...wks)):monday(TODAY)),weeks=[];for(let m=wFrom;m<=m1;m+=7)weeks.push({m,h:C.weeks.get(m)||0,b:BC.weeks.get(m)||0,cap:capWeek(S,m),bcap:capWeek(BASE,m)});
   const ymax=niceMax(Math.max(1,...weeks.map(w=>Math.max(w.h,w.b,w.cap)))*1.08);
   const A=axes(ctx,W,H,{l:o.plotL??fs*3.4,r:o.plotR??12,t:10,b:fs*2.2},x0,x1,ymax,p,fs,v=>nf(v));
   ctx.save();ctx.beginPath();ctx.rect(A.L,0,A.Wd,H);ctx.clip();
   shadeShut(ctx,A,x0,x1,p);
+  if(weeks.length&&weeks[0].m>x0+14){ctx.fillStyle=p.ink2;ctx.font=`${fs-1}px Lato, sans-serif`;ctx.textAlign='left';ctx.textBaseline='middle';const lbl='Work already installed is on the S-curves';if(ctx.measureText(lbl).width<A.X(weeks[0].m)-A.L-12)ctx.fillText(lbl,A.L+8,A.T+A.Hd*0.55)}
   const bw=Math.max(1,A.X(m0+7)-A.X(m0)-2);
   for(const w of weeks){const x=A.X(w.m)+1;const yb=A.Y(Math.min(w.h,w.cap));ctx.fillStyle=p.bar;ctx.fillRect(x,yb,bw,A.T+A.Hd-yb);if(w.h>w.cap){ctx.fillStyle=p.ot;ctx.fillRect(x,A.Y(w.h),bw,A.Y(w.cap)-A.Y(w.h))}}
   // capacity step
@@ -772,8 +780,8 @@ function buildExcel(){
   sh.push({name:'Settings',cols:[{h:'Setting',w:30,t:T},{h:'Value',w:14},{h:'Notes',w:40,t:T}],rows:setv});
   sh.push({name:'Milestones',cols:[{h:'ID',w:8,t:T},{h:'Milestone',w:34,t:T},{h:'Baseline Date',w:14,t:D},{h:'Date',w:14,t:D}],rows:Object.values(S.milestones).map(m=>[m.id,m.name,m.base,m.date])});
   sh.push({name:'Rows',cols:[{h:'Row ID',w:8,t:T},{h:'Row',w:44,t:T},{h:'SWBS',w:40,t:T},{h:'Type',w:13,t:T},{h:'Milestone',w:10,t:T},{h:'Baseline Start',w:13,t:D},{h:'Baseline Finish',w:13,t:D},{h:'Start',w:13,t:D},{h:'Finish',w:13,t:D},{h:'Comment',w:40,t:T}],rows:S.rows.map(r=>[r.id,r.name,r.swbs,r.type,r.ms,r.bStart,r.bFinish,C.rows[r.id].es,C.rows[r.id].ef,r.comment])});
-  sh.push({name:'Tags',cols:[{h:'Task ID',w:8,t:T},{h:'Tag',w:15,t:T},{h:'Tag Name',w:38,t:T},{h:'SWBS',w:34,t:T},{h:'Phase',w:6,t:N},{h:'Part Number',w:13,t:T},{h:'Row ID',w:8,t:T},{h:'Baseline Status',w:12,t:T},{h:'Status',w:12,t:T},{h:'Requested (Actual)',w:12,t:D},{h:'Received (Actual)',w:12,t:D},{h:'Installed (Actual)',w:12,t:D},{h:'Engineer Reviewed (Actual)',w:12,t:D},{h:'Requested (Forecast)',w:12,t:D},{h:'Received (Forecast)',w:12,t:D},{h:'Engineer Reviewed (Forecast)',w:12,t:D},{h:'Comment',w:40,t:T}],
-    rows:S.tags.map(t=>[t.tid,t.tag,t.name,t.swbs,t.phase,t.part,t.row,t.bStatus,t.status,t.req,t.recv,t.inst,t.rev,t.fReq,t.fRecv,t.fRev,t.comment])});
+  sh.push({name:'Tags',cols:[{h:'Task ID',w:8,t:T},{h:'Tag',w:15,t:T},{h:'Tag Name',w:38,t:T},{h:'SWBS',w:34,t:T},{h:'Phase',w:6,t:N},{h:'Part Number',w:13,t:T},{h:'Row ID',w:8,t:T},{h:'Baseline Status',w:12,t:T},{h:'Status',w:12,t:T},{h:'Requested (Actual)',w:12,t:D},{h:'Received (Actual)',w:12,t:D},{h:'Installed (Actual)',w:12,t:D},{h:'Engineer Reviewed (Actual)',w:12,t:D},{h:'Requested (Forecast)',w:12,t:D},{h:'Received (Forecast)',w:12,t:D},{h:'Engineer Reviewed (Forecast)',w:12,t:D},{h:'Original Planned Start',w:12,t:D},{h:'Original Planned Finish',w:12,t:D},{h:'Comment',w:40,t:T}],
+    rows:S.tags.map(t=>[t.tid,t.tag,t.name,t.swbs,t.phase,t.part,t.row,t.bStatus,t.status,t.req,t.recv,t.inst,t.rev,t.fReq,t.fRecv,t.fRev,t.oStart,t.oFinish,t.comment])});
   const cnt={};S.tags.forEach(t=>cnt[t.part]=(cnt[t.part]||0)+1);
   sh.push({name:'Parts',cols:[{h:'Part Number',w:14,t:T},{h:'Baseline Hours',w:12,t:N},{h:'Hours',w:10,t:N},{h:'Tags',w:7,t:N}],rows:Object.values(S.parts).sort((a,b)=>a.pn.localeCompare(b.pn)).map(p=>[p.pn,p.bHours,p.hours,cnt[p.pn]||0])});
   sh.push({name:'Calendar',cols:[{h:'Date',w:13,t:D},{h:'Reason',w:36,t:T}],rows:S.cal.map(c=>[c.dn,c.reason])});
@@ -790,7 +798,7 @@ function buildExcel(){
   const ks=[...C.weeks.keys(),...BC.weeks.keys()];const m0=Math.min(...ks),m1=Math.max(...ks);const wk=[];
   for(let m=m0;m<=m1;m+=7){const h=C.weeks.get(m)||0,c=capWeek(S,m),b=BC.weeks.get(m)||0,bc=capWeek(BASE,m);wk.push([m,r1(h),c,r1(Math.max(0,h-c)),r1(b),bc,r1(Math.max(0,b-bc))])}
   sh.push({name:'Weekly Loading',cols:[{h:'Week of (Mon)',w:13,t:D},{h:'Hours needed',w:12,t:N},{h:'Capacity',w:10,t:N},{h:'Overtime',w:10,t:N},{h:'Baseline hours',w:13,t:N},{h:'Baseline capacity',w:13,t:N},{h:'Baseline overtime',w:13,t:N}],rows:wk});
-  for(const mode of['hrs','tags']){const firstAct=Math.min(...C.install.map(x=>x[0]),TODAY);const x0=firstAct-7,x1=Math.max(C.finish,BC.finish)+10;const cur=cumul(x0,x1,C,S,mode),bas=cumul(x0,x1,BC,BASE,mode);const rows=[];
+  for(const mode of['hrs','tags']){const x0=TL.a,x1=TL.b+1;const cur=cumul(x0,x1,C,S,mode),bas=cumul(x0,x1,BC,BASE,mode,true);const rows=[];
     for(let i=0;i<cur.length;i++){const d=cur[i][0];if(wkday(d)!==5&&i!==cur.length-1)continue;rows.push([d,d<=TODAY?r1(cur[i][1]):null,d>=TODAY?r1(cur[i][2]):null,r1(bas[i][2])])}
     sh.push({name:mode==='hrs'?'S-Curve Hours':'S-Curve Tags',cols:[{h:'Week ending (Fri)',w:14,t:D},{h:mode==='hrs'?'Actual hours':'Actual tags',w:12,t:N},{h:mode==='hrs'?'Forecast hours':'Forecast tags',w:13,t:N},{h:mode==='hrs'?'Baseline hours':'Baseline tags',w:13,t:N}],rows})}
   const li=(arr)=>arr.map(i=>[i.date,i.kind,i.label,i.sub,i.row?(rowOf[i.row]||{}).name:'',i.tags.join(', ')]);
@@ -839,14 +847,15 @@ function pdfFromPages(pages){
 }
 /* Schedule Summary: one landscape page, timeline and loading on the same dates */
 function drawGanttCanvas(x,X0,Y0,Wt,Ht,LW,fs,p){
-  const rows=S.rows;const head=fs*2;const rh=(Ht-head)/rows.length;const span=TL.b-TL.a+1;const X=d=>X0+LW+(d-TL.a)/span*(Wt-LW);
+  const rows=S.rows;const head=fs*2;const rh=(Ht-head)/(rows.length+1);const span=TL.b-TL.a+1;const X=d=>X0+LW+(d-TL.a)/span*(Wt-LW);
   x.save();x.fillStyle=p.shade;for(const[a,b]of shutRuns(TL.a,TL.b))x.fillRect(X(a),Y0,X(b+3)-X(a),Ht);
   x.font=`${fs}px Lato, sans-serif`;x.textBaseline='middle';
   {const s0=new Date(TL.a*DAY);let y=s0.getUTCFullYear(),m=s0.getUTCMonth()+1;for(;;){if(m>11){m=0;y++}const d=Date.UTC(y,m,1)/DAY;if(d>TL.b)break;x.strokeStyle=p.line;x.lineWidth=1;x.beginPath();x.moveTo(X(d),Y0);x.lineTo(X(d),Y0+Ht);x.stroke();x.fillStyle=p.ink2;x.textAlign='left';x.fillText(new Date(d*DAY).toLocaleDateString('en-CA',{timeZone:'UTC',month:'short'})+(m===0?" '"+String(y).slice(2):''),X(d)+4,Y0+head/2);m++}}
   x.strokeStyle=p.ink;x.lineWidth=2;x.beginPath();x.moveTo(X0,Y0+head);x.lineTo(X0+Wt,Y0+head);x.stroke();
   x.fillStyle=p.ink2;x.font=`bold ${fs*0.9}px Lato, sans-serif`;x.textAlign='left';x.fillText('ROW · INSTALL WINDOW',X0+6,Y0+head/2);
   const fit=(t,w)=>{if(x.measureText(t).width<=w)return t;while(t.length>1&&x.measureText(t+'…').width>w)t=t.slice(0,-1);return t+'…'};
-  rows.forEach((r,i)=>{const c=C.rows[r.id];const y=Y0+head+i*rh;const dl=c.ef-r.bFinish;
+  {const it=S.tags.filter(t=>t.status==='Installed'&&t.inst!=null);const y=Y0+head;x.fillStyle='rgba(27,127,75,0.06)';x.fillRect(X0,y,Wt,rh);x.font=`bold ${fs*0.9}px Lato, sans-serif`;x.fillStyle=p.ink;x.textAlign='left';x.fillText('Installed to date',X0+6,y+rh/2);x.font=`${fs*0.85}px Lato, sans-serif`;x.fillStyle=p.ink2;x.textAlign='right';x.fillText(`${it.length} tags · ${nf(it.reduce((a,t)=>a+hoursOf(S,t),0))} h`,X0+LW-8,y+rh/2);x.fillStyle=p.actual;for(const d of new Set(it.map(t=>t.inst)))x.fillRect(X(d)-2,y+rh*0.15,4,rh*0.7)}
+  rows.forEach((r,i0)=>{const i=i0+1;const c=C.rows[r.id];const y=Y0+head+i*rh;const dl=c.ef-r.bFinish;
     if(i%2){x.fillStyle='rgba(0,0,0,0.025)';x.fillRect(X0,y,Wt,rh)}
     const dates=c.done?'done':`${fmt(c.es)}–${fmt(c.ef)}`;x.font=`${fs*0.85}px Lato, sans-serif`;const dw=x.measureText(dates).width;
     x.fillStyle=p.ink2;x.textAlign='right';x.fillText(dates,X0+LW-8,y+rh/2);
@@ -884,6 +893,45 @@ async function buildSummaryPdf(){
   x.fillText('Timeline: blue bar = current window (orange = held by a delivery or receipt), grey line = Baseline, +/−d = finish vs Baseline, ◆ orange dashed line = milestone. Loading includes 0.25 h paperwork per request/receipt step.',M,H-60);
   return pdfFromPages([cv]);
 }
+/* Microsoft Project export: Excel file for Project's import wizard (File > Open > .xlsx) */
+function buildProjectXlsx(){
+  const st=S.settings,D='d',T='s',N='n';const out=[];const add=o=>{out.push(o);return out.length};
+  const rowOf={};S.rows.forEach(r=>rowOf[r.id]=r);
+  add({name:'Milestones',lvl:1});
+  const msId={};for(const m of Object.values(S.milestones))msId[m.id]=add({name:'Milestone: '+(m.id==='NAV'?'Nav consoles delivered':m.name),lvl:2,dur:'0d',ms:'Yes',ct:'Start No Earlier Than',cd:m.date,t1:'MS-'+m.id,s1:m.date,bs:m.base,bf:m.base});
+  const revMs=add({name:'Milestone: Review team available',lvl:2,dur:'0d',ms:'Yes',ct:'Start No Earlier Than',cd:st.revFloor,t1:'MS-REVIEW',s1:st.revFloor});
+  // SWBS in order of their earliest install date
+  const by={};for(const t of S.tags)(by[t.swbs]??=[]).push(t);
+  const first=sw=>Math.min(...by[sw].map(t=>{const c=C.tags[t.tag]||{};return t.status==='Installed'?(t.inst??Infinity):(c.start??Infinity)}));
+  for(const sw of Object.keys(by).sort((a,b)=>first(a)-first(b)||a.localeCompare(b))){
+    add({name:sw,lvl:1});
+    for(const t of by[sw].sort((a,b)=>a.tag.localeCompare(b.tag))){
+      const c=C.tags[t.tag]||{};const r=rowOf[t.row];const inst=t.status==='Installed';const factory=!!(r&&r.ms)&&t.req==null;
+      add({name:`${t.tag} ${t.name}`,lvl:2,t1:t.tid,notes:t.comment});
+      let reqId=null;const recvDone=t.recv!=null||inst,recvA=t.recv??(inst?t.inst:null),reqDone=t.req!=null||recvDone,reqA=t.req??recvA;
+      if(!factory)reqId=add({name:'Request',lvl:3,dur:'15 mins',ct:reqDone?null:'Start No Earlier Than',cd:reqDone?null:c.req,af:reqA,as:reqA,pc:reqDone?100:0,t1:`${t.tag} Request`,s1:c.req});
+      const recvPred=factory?(r&&msId[r.ms]?String(msId[r.ms]):''):(reqId?`${reqId}FS+${st.lead} edays`:'');
+      const recvId=add({name:'Receive',lvl:3,dur:'15 mins',pr:recvPred,ct:!recvDone&&t.fRecv!=null?'Start No Earlier Than':null,cd:!recvDone&&t.fRecv!=null?t.fRecv:null,af:recvA,as:recvA,pc:recvDone?100:0,t1:`${t.tag} Receive`,s1:c.recv,notes:factory?'Factory order: receipt is the delivery milestone':''});
+      const dur=inst?(t.oStart!=null&&t.oFinish!=null?Math.max(1,wdBetween(t.oStart,t.oFinish)):1):Math.max(1,(C.rows[r.id]||{}).dur||1);
+      const instPred=[`${recvId}FS+${st.buffer} edays`];if(r&&r.ms&&msId[r.ms])instPred.push(String(msId[r.ms]));
+      const instId=add({name:'Install',lvl:3,dur:dur+'d',pr:instPred.join(','),ct:inst?null:'Start No Earlier Than',cd:inst?null:c.start,af:t.inst,pc:inst?100:0,t1:`${t.tag} Install`,s1:inst?null:c.start,f1:c.finish,bs:inst?t.oStart:(r?r.bStart:null),bf:inst?t.oFinish:(r?r.bFinish:null),work:hoursOf(S,t)});
+      add({name:'Engineer Reviewed',lvl:3,dur:'0d',ms:'Yes',pr:`${instId}FS+${st.revGap} edays,${revMs}`,ct:t.rev==null&&t.fRev!=null?'Start No Earlier Than':null,cd:t.rev==null&&t.fRev!=null?t.fRev:null,af:t.rev,as:t.rev,pc:t.rev!=null?100:0,t1:`${t.tag} Engineer Reviewed`,s1:c.review});
+    }
+  }
+  const cols=[{h:'ID',w:6,t:N},{h:'Name',w:46,t:T},{h:'Outline Level',w:8,t:N},{h:'Duration',w:10,t:T},{h:'Predecessors',w:22,t:T},{h:'Constraint Type',w:20,t:T},{h:'Constraint Date',w:13,t:D},{h:'Actual Start',w:12,t:D},{h:'Actual Finish',w:12,t:D},{h:'% Complete',w:9,t:N},{h:'Milestone',w:9,t:T},{h:'Text1',w:30,t:T},{h:'Start1',w:12,t:D},{h:'Finish1',w:12,t:D},{h:'Baseline Start',w:12,t:D},{h:'Baseline Finish',w:12,t:D},{h:'Number1',w:9,t:N},{h:'Notes',w:40,t:T}];
+  const rows=out.map((o,i)=>[i+1,o.name,o.lvl,o.dur??null,o.pr||null,o.ct||null,o.cd??null,o.as??null,o.af??null,o.pc??null,o.ms||(o.dur?'No':null),o.t1||null,o.s1??null,o.f1??o.s1??null,o.bs??null,o.bf??null,o.work??null,o.notes||null]);
+  const readme=[['Microsoft Project export',`Made by Install Path ${BUILD} on ${stamp()}. ${out.length} tasks.`],
+    ['How to import','In Microsoft Project (desktop 2016 or newer, or Project for Microsoft 365): File > Open, choose this .xlsx, and follow the Import Wizard: New map > As a new project > Tasks > choose the sheet "Tasks" > the column names already match Project fields, so check each row maps to the field with the same name > Finish.'],
+    ['Calendar first (recommended)','Project cannot read holidays from Excel. Before importing (or right after), set the project calendar to a 5-day week, 8 h/day, and add every date on the "Calendar" tab as non-working time (Project > Change Working Time > Exceptions).'],
+    ['Structure','Outline Level 1 = SWBS (and a Milestones group), 2 = tag, 3 = steps: Request, Receive, Install, Engineer Reviewed. Text1 holds a fixed task ID (e.g. "420.04-E0002 Install") so later updates can be merged.'],
+    ['Links',`Receive = Request finish + ${st.lead} calendar days. Install starts ${st.buffer} calendar days after receipt and no earlier than its planned start (Start No Earlier Than). Engineer Reviewed = ${st.revGap} calendar days after the install, and not before "Milestone: Review team available". Console installs also link to their delivery milestone; factory consoles have no request step.`],
+    ['Actuals','Finished steps carry their actual dates and 100% complete. Installs already done are 100% complete on their installed date.'],
+    ['Reference fields','Start1/Finish1 = the dates Install Path planned; Baseline Start/Finish = the Baseline install window; Number1 = install hours (for resource loading later).'],
+    ['Not included yet','Resources (Technicians pool) come in a second step. Console cable delivery is not a milestone yet. Do not run automatic levelling.'],
+    ['Durations','Install durations are working days. Request and Receive are 15-minute tasks. Milestones are 0 days.']];
+  return writeXlsx([{name:'Read Me',cols:[{h:'Install Path',w:28,t:T},{h:'',w:120,t:T}],rows:readme},{name:'Tasks',cols,rows},{name:'Calendar',cols:[{h:'Non-working date',w:16,t:D},{h:'Reason',w:36,t:T}],rows:S.cal.map(c=>[c.dn,c.reason])}]);
+}
+async function doProjectExport(){if(!S)return;try{const ok=await dlBlob(buildProjectXlsx(),`Install Path - MS Project Import - ${fileStamp()}.xlsx`);if(ok!==false)toast('Microsoft Project file ready')}catch(e){console.error(e);toast('Export failed: '+e.message)}}
 let DIRTY=false,LASTSAVE='';
 function setDirty(v){DIRTY=v;const d=document.getElementById('dirty');if(d)d.hidden=!v}
 async function saveAs(){
@@ -919,6 +967,7 @@ function theme(t){if(t)document.documentElement.setAttribute('data-theme',t);try
   document.getElementById('ldGo').onclick=()=>{document.getElementById('mLoad').classList.remove('on');file.click()};
   document.getElementById('ldSave').onclick=async()=>{document.getElementById('mLoad').classList.remove('on');await saveAs()};
   document.getElementById('saveas').onclick=saveAs;
+  document.getElementById('msp').onclick=doProjectExport;
   window.addEventListener('beforeunload',e=>{if(DIRTY){e.preventDefault();e.returnValue=''}});
   document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&S){e.preventDefault();saveAs()}});
   document.getElementById('dlGo').onclick=doDownload;
@@ -937,7 +986,7 @@ function theme(t){if(t)document.documentElement.setAttribute('data-theme',t);try
       const k=t.status==='Installed'?'Engineer Review':t.recv!=null?'Install':t.req!=null||c.reqK==='none'?'Receipt':'Request';
       openUpdate({kind:k,date:k==='Request'?c.req:k==='Receipt'?c.recv:k==='Install'?c.finish:c.review,tags:[tg],row:t.row,label:tg,sub:t.name},true)}});
   const gantt=document.getElementById('gantt');gantt.addEventListener('pointerdown',onDown);
-  gantt.addEventListener('click',e=>{const l=e.target.closest('.grow2 .glab');if(!l)return;const id=l.parentElement.dataset.id;OPEN.add(id);document.getElementById('q').value='';renderGantt();renderGrid();const tr=document.querySelector(`#grid tr.grow[data-id="${id}"]`);if(tr){tr.scrollIntoView({behavior:'smooth',block:'center'});tr.classList.add('flash');setTimeout(()=>tr.classList.remove('flash'),1600)}});window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
+  gantt.addEventListener('click',e=>{const l=e.target.closest('.grow2 .glab');if(!l)return;const id=l.parentElement.dataset.id;if(!id)return;OPEN.add(id);document.getElementById('q').value='';renderGantt();renderGrid();const tr=document.querySelector(`#grid tr.grow[data-id="${id}"]`);if(tr){tr.scrollIntoView({behavior:'smooth',block:'center'});tr.classList.add('flash');setTimeout(()=>tr.classList.remove('flash'),1600)}});window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
   document.getElementById('partsT').addEventListener('change',e=>{if(e.target.classList.contains('iPart'))setPart(e.target.dataset.part,e.target.value)});
   document.getElementById('q').addEventListener('input',()=>{renderGantt();renderGrid()});document.getElementById('pq').addEventListener('input',renderParts);
   const at=document.getElementById('aheadTo');at.value=dnToIso(TODAY+14);at.min=dnToIso(TODAY);at.onchange=()=>{renderLists();renderTop()};
