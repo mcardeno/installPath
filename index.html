@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install Path</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff; --ink:#111111; --ink2:#555555; --ink3:#8a8a8a; --line:#d9d9d9; --faint:#efefef;
+  --ctl:#1f5fd1; --ctl2:#6f9be8; --ctlbg:#eef3fc; --late:#c23b22; --warn:#b26a00; --good:#1b7f4b;
+  --actual:#1b7f4b; --forecast:#111111; --base:#9a9a9a; --bar:#cfcfcf; --ot:#d9542b; --shade:#f1f1f1;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121314; --ink:#ececec; --ink2:#b4b4b4; --ink3:#808080; --line:#3a3c3f; --faint:#1d1f21;
+  --ctl:#7fb0ff; --ctl2:#4f7fcf; --ctlbg:#1a2436; --late:#ff7a5c; --warn:#f0a43a; --good:#4cc38a;
+  --actual:#4cc38a; --forecast:#ececec; --base:#7a7a7a; --bar:#4a4d52; --ot:#ff7a50; --shade:#1b1c1e; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#121314; --ink:#ececec; --ink2:#b4b4b4; --ink3:#808080; --line:#3a3c3f; --faint:#1d1f21;
+  --ctl:#7fb0ff; --ctl2:#4f7fcf; --ctlbg:#1a2436; --late:#ff7a5c; --warn:#f0a43a; --good:#4cc38a;
+  --actual:#4cc38a; --forecast:#ececec; --base:#7a7a7a; --bar:#4a4d52; --ot:#ff7a50; --shade:#1b1c1e; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Lato,system-ui,-apple-system,Segoe UI,sans-serif;font-size:17px}
+button,input,select,textarea{font:inherit;color:inherit}
+.serif{font-family:"Source Serif 4",Georgia,serif;font-weight:600}
+/* controls: blue outlines only */
+.btn{background:transparent;border:2px solid var(--ctl);color:var(--ctl);border-radius:10px;padding:8px 14px;cursor:pointer;font-weight:700;white-space:nowrap;min-height:44px}
+.btn:hover{background:var(--ctlbg)} .btn:disabled{opacity:.4;cursor:default;background:transparent}
+.btn.sm{padding:4px 10px;min-height:34px;font-size:15px;border-width:1.5px}
+.btn.icon{padding:6px 10px}
+input[type=date],input[type=number],input[type=text],select,textarea{background:transparent;border:1.5px solid var(--ctl2);border-radius:8px;padding:6px 8px;min-height:40px}
+input:focus,select:focus,textarea:focus,.btn:focus-visible{outline:3px solid var(--ctl);outline-offset:1px}
+input[type=date]{min-width:9.2em} input[type=number]{width:5.2em}
+#grid input[type=date]{min-width:0;width:8.6em;font-size:15px;padding:4px 6px;min-height:36px} #grid input[type=number]{width:3.8em;font-size:15px;padding:4px 6px;min-height:36px}
+#grid td{padding:5px 6px}
+[data-theme="dark"] input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1)}}
+/* layout */
+header{display:flex;align-items:center;gap:14px;padding-block:12px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));border-bottom:2px solid var(--ink);flex-wrap:wrap}
+.word{font-size:30px;letter-spacing:.2px;margin-right:6px;position:relative}
+.word svg{position:absolute;left:0;bottom:-6px;width:100%;height:8px;overflow:visible}
+.word path{stroke:var(--ink);stroke-width:1.6;fill:none;stroke-dasharray:200;stroke-dashoffset:200;animation:draw 1.4s ease forwards .2s}
+@keyframes draw{to{stroke-dashoffset:0}}
+.plan{color:var(--ink2);font-size:15px}
+.spacer{flex:1}
+.bar2{display:flex;align-items:center;gap:18px;padding-block:10px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);flex-wrap:wrap}
+.field{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink2)}
+.field b{color:var(--ink);font-weight:700}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper span{min-width:1.6em;text-align:center;font-size:22px;font-weight:700;color:var(--ink)}
+.kpis{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;padding-block:12px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));border-bottom:2px solid var(--ink)}
+.kpi{border:2px solid var(--ink);border-radius:12px;padding:8px 14px;min-width:0}
+.kpi .l{font-size:14px;color:var(--ink2);text-transform:uppercase;letter-spacing:.6px}
+.kpi .v{font-size:30px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .d{font-size:15px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d .up{color:var(--late);font-weight:700} .d .dn{color:var(--good);font-weight:700}
+.tabs{display:flex;gap:8px;padding-top:12px;padding-bottom:0;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));flex-wrap:wrap}
+.tab{border:2px solid var(--ctl);border-bottom:none;border-radius:10px 10px 0 0;background:transparent;color:var(--ctl);padding:8px 16px;font-weight:700;cursor:pointer;min-height:44px}
+.tab.on{color:var(--bg);background:var(--ctl)}
+.tab .n{display:inline-block;margin-left:6px;font-size:13px;border:1.5px solid currentColor;border-radius:9px;padding:0 6px}
+main{border-top:2px solid var(--ctl)}
+.view{display:none;padding-top:16px;padding-bottom:60px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))} .view.on{display:block}
+.split{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+@media (min-width:1500px){.split{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)} .charts{position:sticky;top:120px;align-self:start}}
+.charts{display:grid;gap:14px}
+.chart{border:2px solid var(--ink);border-radius:12px;padding:10px 12px 6px;position:relative}
+.chart h3{margin:0 0 4px;font-size:17px} .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--ink2);margin-bottom:4px}
+.sw{display:inline-block;width:22px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+.sw.dash{border-top-style:dashed} .sw.box{height:12px;width:14px;border:none}
+canvas{width:100%;display:block}
+.tip{position:absolute;pointer-events:none;background:var(--bg);border:1.5px solid var(--ink);border-radius:8px;padding:6px 9px;font-size:14px;line-height:1.35;display:none;z-index:5;white-space:nowrap}
+/* table */
+.tablewrap{overflow-x:auto;border:2px solid var(--ink);border-radius:12px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:14px;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;background:var(--bg);z-index:2;border-bottom:2px solid var(--ink)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.rname{font-weight:700;min-width:10em;max-width:18em;font-size:16px;line-height:1.25} .sub{font-size:13px;color:var(--ink2);font-weight:400}
+.tag-ms{display:inline-block;border:1.5px solid var(--warn);color:var(--warn);border-radius:6px;padding:0 5px;font-size:12px;font-weight:700;margin-left:4px}
+.held{color:var(--warn);font-size:13px;font-weight:700}
+.delta.up{color:var(--late);font-weight:700}
+tr.flash td{background:var(--ctlbg)} .delta.dn{color:var(--good);font-weight:700}
+tr.done td{color:var(--ink3)}
+.exp{border:1.5px solid var(--ctl);color:var(--ctl);background:transparent;border-radius:7px;width:32px;height:32px;cursor:pointer;font-weight:700}
+.tlcell{min-width:340px;width:40%}
+.track{position:relative;height:30px}
+.trackhead{position:relative;height:34px}
+.mtick{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);font-size:12px;color:var(--ink2);padding-left:3px;text-transform:none;letter-spacing:0}
+.shut{position:absolute;top:0;bottom:0;background:var(--shade)}
+.msline{position:absolute;top:-6px;bottom:-6px;border-left:2px dashed var(--warn);opacity:.7}
+.mslab{position:absolute;font-size:11px;color:var(--warn);font-weight:700;transform:translateX(-50%);white-space:nowrap;text-transform:none;letter-spacing:0}
+.todayline{position:absolute;top:-6px;bottom:-6px;border-left:2px solid var(--late)}
+.bbar{position:absolute;top:21px;height:5px;background:var(--base);border-radius:3px;opacity:.55}
+.gbar{position:absolute;top:3px;height:17px;border:2px solid var(--ctl);border-radius:6px;cursor:grab;touch-action:none;background:var(--ctlbg)}
+.gbar.pushed{border-color:var(--warn)} .gbar.donebar{border-color:var(--ink3);cursor:default;background:transparent}
+.gbar .h{position:absolute;right:-6px;top:-2px;bottom:-2px;width:12px;cursor:ew-resize}
+.gbar.drag{cursor:grabbing;box-shadow:0 0 0 3px var(--ctlbg)}
+tr.detail>td{background:var(--faint);padding:10px 14px}
+.inner th{position:static;background:transparent;font-size:13px} .inner td{font-size:15px}
+.kind{font-size:12px;color:var(--ink2)} .kind.act{color:var(--ink3);font-style:italic}
+.pill{display:inline-block;border:1.5px solid var(--ink2);border-radius:999px;padding:0 8px;font-size:13px}
+.pill.Installed{border-color:var(--good);color:var(--good)} .pill.WIP{border-color:var(--ctl);color:var(--ctl)} .pill.Requested{border-color:var(--warn);color:var(--warn)}
+/* lists */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.empty{border:2px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--ink2)}
+.late{color:var(--late);font-weight:700}
+/* start screen */
+#start{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center}
+#start .word{font-size:64px}
+#drop{border:2px dashed var(--ctl);border-radius:16px;padding:34px 40px;max-width:640px;color:var(--ink2)}
+#drop.over{background:var(--ctlbg)}
+#app{display:none}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal.on{display:flex}
+.card{background:var(--bg);border:2px solid var(--ink);border-radius:14px;max-width:640px;width:100%;max-height:90vh;overflow:auto;padding:20px 22px}
+.card h2{margin:0 0 8px;font-size:24px}
+.card .row{display:flex;gap:12px;align-items:center;margin:10px 0;flex-wrap:wrap}
+.card label{font-size:15px;color:var(--ink2)}
+.choice{display:flex;gap:8px;align-items:center;border:1.5px solid var(--ctl2);border-radius:10px;padding:8px 12px;cursor:pointer}
+.choice input{width:20px;height:20px;accent-color:var(--ctl)}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.taglist{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.taglist label{display:block;color:var(--ink);padding:3px 0}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:10px;font-weight:700;z-index:200;display:none;max-width:90vw}
+.err{color:var(--late);font-weight:700}
+.note{font-size:14px;color:var(--ink2)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+.msf{color:var(--warn);font-weight:700} .dia{font-size:18px;line-height:1}
+.dirty{color:var(--warn);font-weight:700;font-size:14px}
+.sect{margin:22px 0 8px;font-size:18px}
+.gwrap{overflow-x:auto} .ginner{min-width:0}
+.gantt{--lw:320px;border:2px solid var(--ink);border-bottom:none;border-radius:12px 12px 0 0;overflow:hidden}
+.gbody{max-height:46vh;overflow-y:auto;scrollbar-gutter:stable}
+.ghead,.grow2{display:flex}
+.ghead{position:sticky;top:0;z-index:3;background:var(--bg);border-bottom:2px solid var(--ink);height:36px}
+.ghead .glab{font-size:13px;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;cursor:default}
+.grow2{height:27px;border-bottom:1px solid var(--line)}
+.grow2.done .gn{color:var(--ink3);font-weight:400}
+.glab{flex:0 0 var(--lw);width:var(--lw);display:flex;align-items:center;gap:6px;padding:0 8px;border-right:1px solid var(--line);cursor:pointer;min-width:0;font-size:14px}
+.glab:hover .gn{color:var(--ctl);text-decoration:underline}
+.gn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.gd{flex:0 0 auto;font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.gtrack{flex:1;position:relative;min-width:0}
+.grow2 .gbar{top:4px;height:14px} .grow2 .bbar{top:20px;height:4px}
+.mgrid{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);opacity:.6}
+.loadbox{border-top:1px dashed var(--line);border-radius:0 0 12px 12px;padding:8px 0 4px}
+.loadbox h3,.loadbox .legend{padding:0 12px}
+.curves{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:14px;margin-top:16px}
+.rev{font-size:12px;color:var(--ink3);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .kpi .v{font-size:24px} header,.bar2,.kpis,.tabs,.view{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
+@media (max-width:700px){
+  html,body{font-size:16px} .word{font-size:24px} #start .word{font-size:46px} header{gap:8px} header .btn{min-height:40px;padding:6px 10px;font-size:15px}
+  #planName{flex-basis:100%;order:3;font-size:13px} .spacer{display:none}
+  .kpis{position:static;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px} .kpi{padding:6px 10px} .kpi .v{font-size:21px} .kpi .l{font-size:12px} .kpi .d{font-size:13px;white-space:normal}
+  .kpi:last-child{grid-column:1 / -1}
+  .bar2{gap:10px} .bar2 .field{flex-wrap:wrap}
+  .tabs{flex-wrap:nowrap;overflow-x:auto} .tab{padding:6px 12px;white-space:nowrap}
+  .gwrap .ginner{min-width:860px} .gantt{--lw:210px} .gbody{max-height:60vh}
+  .tlcell{min-width:240px} .rname{max-width:12em;font-size:15px}
+  .card{padding:16px} .card h2{font-size:20px}
+}
+</style>
+</head>
+<body>
+<div id="start">
+  <div class="word serif">Install Path<svg viewBox="0 0 200 8" preserveAspectRatio="none"><path d="M2 5 C 50 1, 120 8, 198 3"/></svg></div>
+  <div class="plan">What-if board for the installation schedule · <span id="rev0"></span></div>
+  <div id="drop">
+    <p style="margin-top:0">Open the Install Path data file, or a file you saved with Save as (.xlsx). It is read here in your browser and never uploaded.</p>
+    <button class="btn" id="pick">Open file</button>
+    <p class="note" style="margin-bottom:0">Or drag the file onto this box.</p>
+    <p id="startErr" class="err"></p>
+  </div>
+  <div id="resume" style="display:none"><button class="btn" id="resumeBtn">Continue last session</button><div class="note" id="resumeNote"></div></div>
+  <input type="file" id="file" accept=".xlsx" hidden>
+</div>
+
+<div id="app">
+<header>
+  <div class="word serif">Install Path<svg viewBox="0 0 200 8" preserveAspectRatio="none"><path d="M2 5 C 50 1, 120 8, 198 3"/></svg></div>
+  <span class="rev" id="rev"></span><div class="plan" id="planName"></div>
+  <div class="spacer"></div>
+  <button class="btn" id="undo" title="Undo the last change">Undo</button>
+  <button class="btn" id="reset">Reset…</button>
+  <span class="dirty" id="dirty" hidden>● Unsaved changes</span>
+  <button class="btn" id="load">Open…</button>
+  <button class="btn" id="saveas">Save as…</button>
+  <button class="btn" id="dl">Download…</button>
+  <button class="btn icon" id="theme" title="Day / night">☀︎ / ☾</button>
+</header>
+<div class="bar2">
+  <div class="field">Technicians <div class="stepper"><button class="btn sm" id="techM" aria-label="Fewer technicians">−</button><span id="techV">4</span><button class="btn sm" id="techP" aria-label="More technicians">+</button></div></div>
+  <div class="field">Hours/day <input type="number" id="hpd" min="1" max="16" step="0.5"></div>
+  <div class="field msf"><span class="dia" aria-hidden="true">◆</span> Milestone: Nav consoles delivered <input type="date" id="msNAV"></div>
+  <div class="field msf"><span class="dia" aria-hidden="true">◆</span> Milestone: FDCR delivered <input type="date" id="msFDCR"></div>
+  <div class="field">Today <b id="todayV"></b></div>
+</div>
+<div class="kpis" id="kpis"></div>
+<div class="tabs" id="tabs">
+  <button class="tab on" data-v="sched">Schedule</button>
+  <button class="tab" data-v="ahead">Look-ahead <span class="n" id="nAhead">0</span></button>
+  <button class="tab" data-v="late">Late items <span class="n" id="nLate">0</span></button>
+  <button class="tab" data-v="parts">Parts &amp; hours</button>
+  <button class="tab" data-v="chg">Changes <span class="n" id="nChg">0</span></button>
+</div>
+<main>
+  <section class="view on" id="v-sched">
+    <div class="toolbar"><input type="text" id="q" placeholder="Filter rows (SWBS, tag, name)" style="min-width:16em"><span class="note">Drag a bar to move it, drag its right end to stretch it. Tap a row name to edit its dates and tags. Blue = editable.</span></div>
+    <div class="gwrap"><div class="ginner">
+      <div class="gantt" id="gantt"></div>
+      <div class="chart loadbox"><h3>Weekly loading vs technician capacity <span class="note">same dates as the timeline above</span></h3><div class="legend"><span><i class="sw box" style="background:var(--bar)"></i>Hours needed</span><span><i class="sw box" style="background:var(--ot)"></i>Overtime</span><span><i class="sw" style="border-color:var(--ink)"></i>Capacity</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cLoad" height="240"></canvas><div class="tip"></div></div>
+    </div></div>
+    <div class="curves">
+      <div class="chart"><h3>S-curve by install hours</h3><div class="legend"><span><i class="sw" style="border-color:var(--actual)"></i>Actual</span><span><i class="sw" style="border-color:var(--forecast)"></i>Forecast</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cHrs" height="250"></canvas><div class="tip"></div></div>
+      <div class="chart"><h3>S-curve by tags installed</h3><div class="legend"><span><i class="sw" style="border-color:var(--actual)"></i>Actual</span><span><i class="sw" style="border-color:var(--forecast)"></i>Forecast</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cTags" height="250"></canvas><div class="tip"></div></div>
+    </div>
+    <h3 class="sect">Rows: dates, hours and tags</h3>
+    <div class="tablewrap"><table id="grid"></table></div>
+  </section>
+  <section class="view" id="v-ahead">
+    <div class="toolbar">From today to <input type="date" id="aheadTo"> <button class="btn sm" data-ah="14">2 weeks</button><button class="btn sm" data-ah="28">4 weeks</button><button class="btn sm" data-ah="eom">End of month</button></div>
+    <div id="aheadList"></div>
+  </section>
+  <section class="view" id="v-late"><div id="lateList"></div></section>
+  <section class="view" id="v-parts">
+    <div class="toolbar"><input type="text" id="pq" placeholder="Filter parts or tags" style="min-width:18em"><span class="note">Changing a part's hours changes every tag with that part. Hours don't move dates; they change the loading.</span></div>
+    <div class="tablewrap"><table id="partsT"></table></div>
+  </section>
+  <section class="view" id="v-chg"><div id="chgList"></div></section>
+</main>
+</div>
+
+<div class="modal" id="mUpd"><div class="card" id="updCard"></div></div>
+<div class="modal" id="mReset"><div class="card">
+  <h2>Reset</h2>
+  <p>Choose how far to go back. You can undo a reset.</p>
+  <div class="actions" style="justify-content:flex-start;flex-direction:column;align-items:stretch">
+    <button class="btn" id="rsPlan">Reset the plan to the Baseline (keep status updates)</button>
+    <button class="btn" id="rsAll">Back to the file as it was loaded (undo everything)</button>
+    <button class="btn" data-close>Cancel</button>
+  </div></div></div>
+<div class="modal" id="mDl"><div class="card">
+  <h2>Download a report</h2>
+  <div class="row"><label class="choice"><input type="checkbox" id="dlS" checked> Schedule Summary: one landscape page with key figures, the timeline and the loading chart on the same dates</label></div>
+  <div class="row"><label class="choice"><input type="checkbox" id="dlP"> Full report: key figures and loading, both S-curves, and everything that changed (PDF, 3+ pages)</label></div>
+  <p class="note">Reports are made here in your browser. To keep your work, use Save as.</p>
+  <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn" id="dlGo">Download</button></div></div></div>
+<div class="modal" id="mLoad"><div class="card">
+  <h2>Open a file</h2>
+  <p id="ldMsg">Opening a file replaces what's on screen.</p>
+  <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn" id="ldSave" hidden>Save as first</button><button class="btn" id="ldGo">Open file</button></div></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const BUILD="Rev 0.0";
+/* ============ dates & calendar ============ */
+const DAY=86400000;
+const isoToDn=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));return m?Date.UTC(+m[1],m[2]-1,+m[3])/DAY:null};
+const dnToIso=d=>d==null||!isFinite(d)?'':new Date(d*DAY).toISOString().slice(0,10);
+const fmt=d=>d==null||!isFinite(d)?'—':new Date(d*DAY).toLocaleDateString('en-CA',{timeZone:'UTC',month:'short',day:'numeric'});
+const fmtY=d=>d==null||!isFinite(d)?'—':new Date(d*DAY).toLocaleDateString('en-CA',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric'});
+const wkday=d=>((d%7)+11)%7; // 0=Sun
+let HOL=new Set();
+const isWork=d=>{const w=wkday(d);return w>0&&w<6&&!HOL.has(d)};
+const nextWork=d=>{while(!isWork(d))d++;return d};
+const prevWork=d=>{while(!isWork(d))d--;return d};
+function addWork(s,n){s=nextWork(s);let c=1;while(c<Math.max(1,n)){s++;if(isWork(s))c++}return s}
+function wdBetween(a,b){if(b<a)return 0;let c=0;for(let d=a;d<=b;d++)if(isWork(d))c++;return c}
+const monday=d=>d-((wkday(d)+6)%7);
+function realToday(){const q=new URLSearchParams(location.search).get('today');if(q&&isoToDn(q)!=null)return isoToDn(q);const n=new Date();return Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())/DAY}
+const TODAY=realToday();
+const r1=x=>Math.round(x*10)/10;
+const nf=x=>Math.round(x).toLocaleString('en-CA');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ============ zip / xlsx (no outside libraries) ============ */
+async function unzip(buf){
+  const dv=new DataView(buf);let e=buf.byteLength-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error('This is not an .xlsx file.');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const files={};const td=new TextDecoder();
+  for(let i=0;i<n;i++){
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lho=dv.getUint32(p+42,true);
+    const name=td.decode(new Uint8Array(buf,p+46,nl));const lnl=dv.getUint16(lho+26,true),lxl=dv.getUint16(lho+28,true);
+    files[name]={method,data:new Uint8Array(buf,lho+30+lnl+lxl,csize)};p+=46+nl+xl+cl;
+  }
+  return files;
+}
+async function inflate(f){if(f.method===0)return f.data;const s=new Blob([f.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return new Uint8Array(await new Response(s).arrayBuffer())}
+async function readXlsx(buf){
+  const z=await unzip(buf);const td=new TextDecoder();const dp=new DOMParser();
+  const get=async n=>{const k=Object.keys(z).find(x=>x.toLowerCase()===n.toLowerCase());return k?dp.parseFromString(td.decode(await inflate(z[k])),'application/xml'):null};
+  const wb=await get('xl/workbook.xml');if(!wb)throw new Error('This is not an Excel workbook.');
+  const rels=await get('xl/_rels/workbook.xml.rels');const rmap={};
+  for(const r of rels.getElementsByTagName('Relationship'))rmap[r.getAttribute('Id')]=r.getAttribute('Target');
+  const ssx=await get('xl/sharedStrings.xml');const ss=[];
+  if(ssx)for(const si of ssx.getElementsByTagName('si')){let t='';for(const x of si.getElementsByTagName('t'))t+=x.textContent;ss.push(t)}
+  const out={};
+  for(const sh of wb.getElementsByTagName('sheet')){
+    const rid=sh.getAttribute('r:id')||sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
+    let tgt=rmap[rid];if(!tgt)continue;tgt=tgt.replace(/^\//,'');if(!tgt.startsWith('xl/'))tgt='xl/'+tgt;
+    const doc=await get(tgt);if(!doc)continue;const grid=[];
+    for(const row of doc.getElementsByTagName('row')){
+      const ri=+row.getAttribute('r')-1;const arr=[];
+      for(const c of row.getElementsByTagName('c')){
+        const ref=c.getAttribute('r')||'';const L=ref.replace(/\d+/g,'');let ci=0;for(const ch of L)ci=ci*26+ch.charCodeAt(0)-64;ci--;
+        const t=c.getAttribute('t');const v=c.getElementsByTagName('v')[0];let val=null;
+        if(t==='s')val=v?ss[+v.textContent]:null;
+        else if(t==='inlineStr'){let s='';for(const x of c.getElementsByTagName('t'))s+=x.textContent;val=s}
+        else if(t==='str'||t==='e')val=v?v.textContent:null;
+        else if(t==='b')val=v?v.textContent==='1':null;
+        else val=v&&v.textContent!==''?Number(v.textContent):null;
+        if(ci>=0)arr[ci]=val;
+      }
+      grid[ri]=arr;
+    }
+    out[sh.getAttribute('name')]=grid;
+  }
+  return out;
+}
+function rowsOf(grid){const h=(grid[0]||[]).map(x=>x==null?'':String(x).trim());const out=[];for(let i=1;i<grid.length;i++){const g=grid[i];if(!g||g.every(v=>v==null||v===''))continue;const o={};h.forEach((k,j)=>{if(k)o[k]=g[j]??null});out.push(o)}return out}
+const toDn=v=>v==null||v===''?null:typeof v==='number'?Math.round(v)-25569:isoToDn(v);
+const toNum=v=>v==null||v===''?null:Number(v);
+const toStr=v=>v==null?'':String(v).trim();
+
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+function zip(files){ // [{name,data:Uint8Array}] stored
+  const te=new TextEncoder();const parts=[];const cen=[];let off=0;
+  for(const f of files){const nm=te.encode(f.name);const crc=crc32(f.data);const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);lh.setUint16(10,0,true);lh.setUint16(12,0x21,true);
+    lh.setUint32(14,crc,true);lh.setUint32(18,f.data.length,true);lh.setUint32(22,f.data.length,true);lh.setUint16(26,nm.length,true);lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),nm,f.data);
+    const ch=new DataView(new ArrayBuffer(46));ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);ch.setUint16(12,0,true);ch.setUint16(14,0x21,true);
+    ch.setUint32(16,crc,true);ch.setUint32(20,f.data.length,true);ch.setUint32(24,f.data.length,true);ch.setUint16(28,nm.length,true);ch.setUint32(42,off,true);
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+f.data.length}
+  const cs=cen.reduce((a,b)=>a+b.length,0);const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+const xesc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+function colL(i){let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s}
+function writeXlsx(sheets){ // [{name, cols:[{h,w,t}], rows:[[]]}]  t: 'd' date(dn) | 'n' number | 's'
+  const te=new TextEncoder();const files=[];const M='http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  sheets.forEach((s,si)=>{
+    let x=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="${M}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>`;
+    s.cols.forEach((c,i)=>{x+=`<col min="${i+1}" max="${i+1}" width="${c.w||12}" customWidth="1"/>`});x+='</cols><sheetData>';
+    const cell=(r,i,v,t,st)=>{const ref=colL(i)+r;if(v==null||v==='')return'';
+      if(t==='d'&&typeof v==='number')return`<c r="${ref}" s="1"><v>${v+25569}</v></c>`;
+      if((t==='n'||typeof v==='number')&&isFinite(v))return`<c r="${ref}" s="${st||3}"><v>${v}</v></c>`;
+      return`<c r="${ref}" t="inlineStr" s="${st||0}"><is><t xml:space="preserve">${xesc(v)}</t></is></c>`};
+    x+='<row r="1">'+s.cols.map((c,i)=>cell(1,i,c.h,'s',2)).join('')+'</row>';
+    s.rows.forEach((row,ri)=>{x+=`<row r="${ri+2}">`+row.map((v,i)=>cell(ri+2,i,v,(s.cols[i]||{}).t,(s.cols[i]||{}).t==='s'?0:null)).join('')+'</row>'});
+    x+='</sheetData></worksheet>';files.push({name:`xl/worksheets/sheet${si+1}.xml`,data:te.encode(x)})});
+  const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`;
+  const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const wb=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="${M}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s,i)=>`<sheet name="${xesc(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`;
+  const wbr=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  const sty=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="${M}"><numFmts count="2"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/><numFmt numFmtId="165" formatCode="#,##0.0#"/></numFmts><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const te2=new TextEncoder();
+  return zip([{name:'[Content_Types].xml',data:te2.encode(ct)},{name:'_rels/.rels',data:te2.encode(rels)},{name:'xl/workbook.xml',data:te2.encode(wb)},{name:'xl/_rels/workbook.xml.rels',data:te2.encode(wbr)},{name:'xl/styles.xml',data:te2.encode(sty)},...files]);
+}
+
+/* ============ state ============ */
+let S=null, BASE=null, LOADED=null, FILENAME='', C=null, BC=null; const UNDO=[];
+const STATUSES=['Not Started','Requested','WIP','Installed'];
+const SETKEYS={'Plan':'plan','Status date':'statusDate','Technicians':'techs','Hours per technician per day':'hpd','Request to receipt (days)':'lead','Receipt before install (days)':'buffer','Review after install (days)':'revGap','Review team available':'revFloor','Restart':'restart','Paperwork hours per step':'paper','Look-ahead (days)':'lookDays','Baseline technicians':'baseTechs','Baseline hours per day':'baseHpd'};
+const DATESET=new Set(['statusDate','revFloor','restart']);
+
+function parseWorkbook(sh){
+  const need=['Settings','Milestones','Rows','Tags','Parts','Calendar'];
+  const miss=need.filter(n=>!sh[n]);if(miss.length)throw new Error('This file is missing the tab(s): '+miss.join(', ')+'. Use the Install Path data file.');
+  const st={plan:'Installation schedule',techs:4,hpd:8,lead:14,buffer:7,revGap:7,revFloor:isoToDn('2027-05-03'),restart:isoToDn('2027-01-11'),paper:0.25,lookDays:14,statusDate:null,baseTechs:null,baseHpd:null};
+  for(const r of rowsOf(sh.Settings)){const k=SETKEYS[toStr(r.Setting)];if(!k)continue;const v=r.Value;st[k]=DATESET.has(k)?toDn(v):(k==='plan'?toStr(v):toNum(v))}
+  if(st.baseTechs==null)st.baseTechs=st.techs; if(st.baseHpd==null)st.baseHpd=st.hpd;
+  const milestones={};for(const r of rowsOf(sh.Milestones)){const id=toStr(r.ID);if(!id)continue;milestones[id]={id,name:toStr(r.Milestone),base:toDn(r['Baseline Date']),date:toDn(r.Date)??toDn(r['Baseline Date'])}}
+  const rows=rowsOf(sh.Rows).filter(r=>toStr(r['Row ID'])).map(r=>({id:toStr(r['Row ID']),name:toStr(r.Row),swbs:toStr(r.SWBS),type:toStr(r.Type),ms:toStr(r.Milestone),bStart:toDn(r['Baseline Start']),bFinish:toDn(r['Baseline Finish']),start:toDn(r.Start)??toDn(r['Baseline Start']),finish:toDn(r.Finish)??toDn(r['Baseline Finish']),comment:toStr(r.Comment)}));
+  const normS=s=>{s=toStr(s);if(/^ins(t)?alled$/i.test(s))return'Installed';const f=STATUSES.find(x=>x.toLowerCase()===s.toLowerCase());return f||'Not Started'};
+  const tags=rowsOf(sh.Tags).filter(r=>toStr(r.Tag)).map((r,i)=>({tid:toStr(r['Task ID'])||('T'+String(i+1).padStart(3,'0')),tag:toStr(r.Tag),name:toStr(r['Tag Name']),swbs:toStr(r.SWBS),phase:toNum(r.Phase),part:toStr(r['Part Number']),row:toStr(r['Row ID']),bStatus:normS(r['Baseline Status']??r.Status),status:normS(r.Status),req:toDn(r['Requested (Actual)']),recv:toDn(r['Received (Actual)']),inst:toDn(r['Installed (Actual)']),rev:toDn(r['Engineer Reviewed (Actual)']),fReq:toDn(r['Requested (Forecast)']),fRecv:toDn(r['Received (Forecast)']),fRev:toDn(r['Engineer Reviewed (Forecast)']),comment:toStr(r.Comment)}));
+  const parts={};for(const r of rowsOf(sh.Parts)){const pn=toStr(r['Part Number']);if(!pn)continue;const b=toNum(r['Baseline Hours'])??toNum(r.Hours)??0;parts[pn]={pn,bHours:b,hours:toNum(r.Hours)??b}}
+  const cal=rowsOf(sh.Calendar).map(r=>({dn:toDn(r.Date),reason:toStr(r.Reason)})).filter(c=>c.dn!=null);
+  const changes=sh.Changes?rowsOf(sh.Changes).map(r=>({when:toStr(r.When),action:toStr(r.Action),item:toStr(r.Item),field:toStr(r.Field),from:toStr(r.From),to:toStr(r.To),comment:toStr(r.Comment)})):[];
+  // checks
+  const probs=[];const rid=new Set(rows.map(r=>r.id));
+  for(const t of tags){if(!parts[t.part])probs.push(`Tag ${t.tag}: part ${t.part||'(blank)'} is not on the Parts tab`);if(t.status!=='Installed'&&!rid.has(t.row))probs.push(`Tag ${t.tag} is not installed but has no valid Row ID`);if(t.status==='Installed'&&t.inst==null)probs.push(`Tag ${t.tag} is Installed with no installed date`)}
+  for(const r of rows){if(r.start==null||r.finish==null)probs.push(`Row ${r.id} has no start or finish`);if(r.ms&&!milestones[r.ms])probs.push(`Row ${r.id} links to unknown milestone ${r.ms}`)}
+  if(probs.length)throw new Error('The file has problems:\n• '+probs.slice(0,12).join('\n• ')+(probs.length>12?`\n…and ${probs.length-12} more`:''));
+  if(st.statusDate==null)st.statusDate=TODAY;
+  return {settings:st,milestones,rows,tags,parts,cal,changes};
+}
+function makeBaseline(L){
+  const B=JSON.parse(JSON.stringify(L));const sd=B.settings.statusDate;
+  B.settings.techs=B.settings.baseTechs;B.settings.hpd=B.settings.baseHpd;
+  for(const k in B.milestones)B.milestones[k].date=B.milestones[k].base;
+  for(const r of B.rows){r.start=r.bStart;r.finish=r.bFinish}
+  for(const k in B.parts)B.parts[k].hours=B.parts[k].bHours;
+  for(const t of B.tags){t.status=t.bStatus;t.fReq=t.fRecv=t.fRev=null;for(const f of['req','recv','rev'])if(t[f]!=null&&t[f]>sd)t[f]=null;if(t.status!=='Installed')t.inst=null}
+  return B;
+}
+
+/* ============ engine ============ */
+const hoursOf=(St,t)=>(St.parts[t.part]||{}).hours||0;
+function compute(St){
+  const st=St.settings,ms=St.milestones;const R={rows:{},tags:{},load:new Map(),paper:new Map(),install:[],remHours:0,remTags:0};
+  const byRow={};for(const t of St.tags)(byRow[t.row]??=[]).push(t);
+  const add=(m,d,h)=>{if(d==null||!isFinite(d))return;m.set(d,(m.get(d)||0)+h)};
+  for(const r of St.rows){
+    const ts=byRow[r.id]||[];const rem=ts.filter(t=>t.status!=='Installed');const dur=Math.max(1,wdBetween(r.start,r.finish));
+    let hold=null,why='';const pre={};
+    for(const t of rem){
+      let req=null,reqK='plan',recv=null,recvK='jit';
+      if(t.req!=null){req=t.req;reqK='actual'}else if(t.fReq!=null){req=t.fReq;reqK='forecast'}else if(r.ms){reqK='none'}
+      if(t.recv!=null){recv=t.recv;recvK='actual'}else if(t.fRecv!=null){recv=t.fRecv;recvK='forecast'}else if(r.ms&&ms[r.ms]){recv=ms[r.ms].date;recvK='milestone'}else if(req!=null){recv=nextWork(Math.max(st.restart,req+st.lead));recvK='after request'}
+      if(recvK==='actual'&&req==null)reqK='none';
+      pre[t.tag]={req,reqK,recv,recvK};
+      if(recv!=null&&recvK!=='actual'&&recvK!=='jit'&&(hold==null||recv>hold)){hold=recv;why=recvK==='milestone'?ms[r.ms].name:`${t.tag} receipt (${recvK})`}
+    }
+    let es=nextWork(r.start),ef=r.finish,pushed=false;
+    if(hold!=null){const h=nextWork(hold);if(h>es){es=h;ef=addWork(es,dur);pushed=true}}
+    if(ef<es)ef=es;
+    let hrs=0,rv=null;
+    for(const t of rem){const p=pre[t.tag];
+      if(p.recvK==='jit'){let recv=prevWork(es-st.buffer),req=prevWork(recv-st.lead);if(req<st.restart){req=st.restart;recv=nextWork(req+st.lead)}p.req=req;p.recv=recv}
+      const rev=t.rev??t.fRev??nextWork(Math.max(st.revFloor,ef+st.revGap));
+      R.tags[t.tag]={...p,start:es,finish:ef,review:rev,revK:t.rev!=null?'actual':t.fRev!=null?'forecast':'plan',row:r.id};
+      const h=hoursOf(St,t);hrs+=h;rv=rv==null?rev:Math.max(rv,rev);
+      if(p.reqK==='plan'||p.reqK==='forecast')add(R.paper,p.req,st.paper);
+      if(p.recvK!=='actual')add(R.paper,p.recv,st.paper);
+    }
+    if(hrs>0){const days=[];for(let d=es;d<=ef;d++)if(isWork(d))days.push(d);if(!days.length)days.push(es);const per=hrs/days.length;for(const d of days)add(R.load,d,per)}
+    R.rows[r.id]={es,ef,dur,pushed,why,rem:rem.length,all:ts.length,hrs,review:rv,done:rem.length===0&&ts.length>0};
+    R.remHours+=hrs;R.remTags+=rem.length;
+  }
+  for(const t of St.tags)if(t.status==='Installed'){R.tags[t.tag]={req:t.req,reqK:'actual',recv:t.recv,recvK:'actual',start:null,finish:t.inst,review:t.rev??t.fRev??nextWork(Math.max(st.revFloor,t.inst+st.revGap)),revK:t.rev!=null?'actual':t.fRev!=null?'forecast':'plan',row:t.row,installed:true};R.install.push([t.inst,hoursOf(St,t)])}
+  // weekly
+  const all=new Map(R.load);for(const[d,h]of R.paper)all.set(d,(all.get(d)||0)+h);
+  R.daily=all;R.weeks=new Map();for(const[d,h]of all){const m=monday(d);R.weeks.set(m,(R.weeks.get(m)||0)+h)}
+  const act=St.rows.filter(r=>R.rows[r.id].rem>0);
+  R.finish=act.length?Math.max(...act.map(r=>R.rows[r.id].ef)):null;
+  const ex=act.filter(r=>r.ms!=='FDCR');R.finishEx=ex.length?Math.max(...ex.map(r=>R.rows[r.id].ef)):null;
+  return R;
+}
+const capWeek=(St,m)=>{let n=0;for(let d=m;d<m+5;d++)if(isWork(d))n++;return St.settings.techs*St.settings.hpd*n};
+function weeklyStats(St,R){let peak=0,peakW=null,ot=0;for(const[m,h]of R.weeks){const c=capWeek(St,m);if(h>peak){peak=h;peakW=m}ot+=Math.max(0,h-c)}return{peak,peakW,ot}}
+function items(St,R){
+  const out=[];const rowOf={};St.rows.forEach(r=>rowOf[r.id]=r);
+  for(const t of St.tags){if(t.status==='Installed')continue;const c=R.tags[t.tag];if(!c)continue;
+    if(c.reqK==='plan'||c.reqK==='forecast')out.push({kind:'Request',date:c.req,tags:[t.tag],row:t.row,label:t.tag,sub:t.name,fc:c.reqK==='forecast'});
+    if(c.recvK!=='actual')out.push({kind:'Receipt',date:c.recv,tags:[t.tag],row:t.row,label:t.tag,sub:t.name+(c.recvK==='milestone'?' · delivery':''),fc:c.recvK==='forecast'});}
+  for(const r of St.rows){const c=R.rows[r.id];if(c.rem>0){const tg=St.tags.filter(t=>t.row===r.id&&t.status!=='Installed').map(t=>t.tag);out.push({kind:'Install',date:c.ef,tags:tg,row:r.id,label:r.name,sub:`${tg.length} tag${tg.length>1?'s':''} · finish`})}}
+  // reviews grouped by row (remaining) and by SWBS for installed tags
+  const g={};for(const t of St.tags){if(t.rev!=null)continue;const c=R.tags[t.tag];if(!c)continue;const k=t.status==='Installed'?'I|'+t.swbs:'R|'+t.row;(g[k]??={kind:'Engineer Review',date:-Infinity,tags:[],row:t.status==='Installed'?null:t.row,label:t.status==='Installed'?t.swbs:(rowOf[t.row]||{}).name,sub:t.status==='Installed'?'installed tags':'after install'});g[k].tags.push(t.tag);g[k].date=Math.max(g[k].date,c.review)}
+  for(const k in g){g[k].sub=`${g[k].tags.length} tag${g[k].tags.length>1?'s':''} · ${g[k].sub}`;out.push(g[k])}
+  return out.sort((a,b)=>a.date-b.date||a.label.localeCompare(b.label));
+}
+
+/* ============ undo / log / save ============ */
+const snap=()=>JSON.stringify({settings:S.settings,milestones:S.milestones,rows:S.rows,tags:S.tags,parts:S.parts,changes:S.changes});
+function commit(fn){UNDO.push(snap());if(UNDO.length>80)UNDO.shift();fn();setDirty(true);refresh(true)}
+function undo(){if(!UNDO.length)return;const o=JSON.parse(UNDO.pop());Object.assign(S,o);setDirty(true);refresh(true);toast('Undone')}
+function stamp(){const n=new Date();return n.toLocaleDateString('en-CA')+' '+n.toTimeString().slice(0,5)}
+function log(action,item,field,from,to,comment){S.changes.push({when:stamp(),action,item,field,from:String(from??''),to:String(to??''),comment:comment||''})}
+function save(){try{localStorage.setItem('installpath.session',JSON.stringify({S:JSON.parse(snap()),LOADED,FILENAME,dirty:DIRTY,saved:stamp()}))}catch(e){}}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',2600)}
+
+/* ============ load ============ */
+async function loadFile(file){
+  const err=document.getElementById('startErr');err.textContent='';
+  try{const buf=await file.arrayBuffer();const sh=await readXlsx(buf);const L=parseWorkbook(sh);start(L,file.name)}
+  catch(e){console.error(e);err.textContent=e.message;err.style.whiteSpace='pre-line';if(document.getElementById('app').style.display==='block')toast('Could not load: '+e.message.split('\n')[0])}
+}
+function start(L,name,restoreS){
+  setDirty(false);
+  LOADED=JSON.parse(JSON.stringify(L));FILENAME=name;HOL=new Set(L.cal.map(c=>c.dn));
+  S=JSON.parse(JSON.stringify(L));if(restoreS)Object.assign(S,restoreS);
+  BASE=makeBaseline(L);BC=compute(BASE);BC.stats=weeklyStats(BASE,BC);UNDO.length=0;
+  document.getElementById('start').style.display='none';document.getElementById('app').style.display='block';
+  document.getElementById('planName').textContent=`Compared with the Baseline (the schedule as first issued) · ${name}`;
+  setTimeline();refresh(false);
+}
+function setTimeline(){
+  let a=Infinity,b=-Infinity;for(const r of S.rows){a=Math.min(a,r.bStart,r.start);b=Math.max(b,r.bFinish,r.finish)}
+  for(const m of Object.values(S.milestones)){a=Math.min(a,m.date,m.base);b=Math.max(b,m.date,m.base)}
+  TL.a=a-10;TL.b=b+21;
+}
+const TL={a:0,b:1};
+const pct=d=>((d-TL.a)/(TL.b-TL.a+1)*100).toFixed(3)+'%';
+
+/* ============ render ============ */
+let OPEN=new Set(),VIEW='sched';
+function refresh(changed){
+  C=compute(S);C.stats=weeklyStats(S,C);C.items=items(S,C);
+  // extend timeline if needed
+  for(const r of S.rows){const c=C.rows[r.id];if(c.ef+7>TL.b)TL.b=c.ef+21;if(c.es-5<TL.a)TL.a=c.es-10}
+  renderTop();renderGantt();renderGrid();renderCharts();renderLists();renderParts();renderChanges();
+  document.getElementById('undo').disabled=!UNDO.length;
+  if(changed)save();
+}
+function dd(cur,base,unit,inv){if(cur==null||base==null)return'';const d=cur-base;if(Math.abs(d)<0.05)return'<span>same as Baseline</span>';const up=d>0;return`<span class="${up!==!!inv?'up':'dn'}">${up?'+':'−'}${unit==='d'?Math.abs(Math.round(d))+' days':nf(Math.abs(d))+' h'}</span> vs Baseline`}
+function renderTop(){
+  const st=S.settings;document.getElementById('techV').textContent=st.techs;document.getElementById('hpd').value=st.hpd;
+  document.getElementById('msNAV').value=dnToIso(S.milestones.NAV?.date);document.getElementById('msFDCR').value=dnToIso(S.milestones.FDCR?.date);
+  document.getElementById('todayV').textContent=fmtY(TODAY);
+  const late=C.items.filter(i=>i.date<TODAY).length;const cap=st.techs*st.hpd*5;
+  const k=[
+    ['Last install',fmtY(C.finish),dd(C.finish,BC.finish,'d')+(C.finishEx?` · all but FDCR ${fmt(C.finishEx)}`:'')],
+    ['Peak week',nf(C.stats.peak)+' h',`${C.stats.peakW!=null?'w/c '+fmt(C.stats.peakW)+' · ':''}capacity ${nf(cap)} · ${dd(C.stats.peak,BC.stats.peak,'h')}`],
+    ['Total overtime',nf(C.stats.ot)+' h',dd(C.stats.ot,BC.stats.ot,'h')],
+    ['Install hours left',nf(C.remHours)+' h',`${C.remTags} tags · ${dd(C.remHours,BC.remHours,'h')}`],
+    ['Late items',String(late),late?'<span class="up">past their planned date</span>':'nothing overdue']];
+  document.getElementById('kpis').innerHTML=k.map(x=>`<div class="kpi"><div class="l">${x[0]}</div><div class="v">${x[1]}</div><div class="d">${x[2]}</div></div>`).join('');
+  document.getElementById('nAhead').textContent=aheadItems().length;document.getElementById('nLate').textContent=late;document.getElementById('nChg').textContent=S.changes.length;
+}
+function trackDeco(head){
+  let h='';const shut=shutRuns(TL.a,TL.b);
+  for(const[a,b]of shut)h+=`<div class="shut" style="left:${pct(a)};width:calc(${pct(b+3)} - ${pct(a)})"></div>`;
+  {const s=new Date(TL.a*DAY);let y=s.getUTCFullYear(),m=s.getUTCMonth()+1;for(;;){if(m>11){m=0;y++}const d=Date.UTC(y,m,1)/DAY;if(d>TL.b)break;h+=head?`<div class="mtick" style="left:${pct(d)}">${new Date(d*DAY).toLocaleDateString('en-CA',{timeZone:'UTC',month:'short'})}${m===0?" '"+String(y).slice(2):''}</div>`:`<div class="mgrid" style="left:${pct(d)}"></div>`;m++}}
+  Object.values(S.milestones).forEach((m,i)=>{h+=`<div class="msline" style="left:${pct(m.date)}"></div>`+(head?`<div class="mslab" style="left:${pct(m.date)};${i%2?'top:0':'bottom:0'}">${esc(m.id==='NAV'?'◆ Nav consoles':'◆ '+m.id)}</div>`:'')});
+  if(TODAY>=TL.a&&TODAY<=TL.b)h+=`<div class="todayline" style="left:${pct(TODAY)}"></div>`;
+  return h;
+}
+function renderGrid(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const tagsBy={};for(const t of S.tags)(tagsBy[t.row]??=[]).push(t);
+  let h=`<thead><tr><th></th><th>Row</th><th class="num" title="Tags left / total">Tags</th><th class="num">Hours</th><th>Start</th><th class="num">Days</th><th>Finish</th><th class="num">Review</th><th class="num">vs Baseline</th></tr></thead><tbody>`;
+  for(const r of S.rows){
+    const c=C.rows[r.id];const ts=tagsBy[r.id]||[];
+    if(!rowMatches(r,q,ts))continue;
+    const delta=c.ef-r.bFinish;const done=c.done;
+    h+=`<tr class="grow${done?' done':''}" data-id="${r.id}"><td><button class="exp" aria-label="Show tags">${OPEN.has(r.id)?'−':'+'}</button></td>
+      <td class="rname">${esc(r.name)}${r.ms?`<span class="tag-ms">${esc(r.ms)}</span>`:''}${(()=>{const bits=[];if(r.type!=='System')bits.push(esc(r.swbs.replace(/\s*\(.*\)$/,'')));if(c.pushed)bits.push(`<span class="held">held by ${esc(c.why)}</span>`);if(r.comment)bits.push(`“${esc(r.comment)}”`);return bits.length?`<div class="sub">${bits.join(' · ')}</div>`:''})()}</td>
+      <td class="num">${c.rem}${c.rem!==c.all?`<span class="sub">/${c.all}</span>`:''}</td><td class="num">${nf(c.hrs)}</td>
+      <td><input type="date" class="iStart" value="${dnToIso(c.es)}" ${done?'disabled':''}></td>
+      <td class="num"><input type="number" class="iDur" min="1" value="${c.dur}" ${done?'disabled':''}></td>
+      <td><input type="date" class="iFin" value="${dnToIso(c.ef)}" ${done?'disabled':''}></td>
+      <td class="num sub">${c.review!=null?fmt(c.review):'—'}</td>
+      <td class="num"><span class="delta ${delta>0?'up':delta<0?'dn':''}">${done?'done':delta===0?'0':(delta>0?'+':'−')+Math.abs(delta)+'d'}</span></td></tr>`;
+    if(OPEN.has(r.id))h+=`<tr class="detail"><td colspan="9">${detailHtml(r,ts)}</td></tr>`;
+  }
+  document.getElementById('grid').innerHTML=h+'</tbody>';
+}
+const rowMatches=(r,q,ts)=>!q||r.name.toLowerCase().includes(q)||r.swbs.toLowerCase().includes(q)||ts.some(t=>t.tag.toLowerCase().includes(q)||t.name.toLowerCase().includes(q));
+function renderGantt(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const tagsBy={};for(const t of S.tags)(tagsBy[t.row]??=[]).push(t);
+  const deco=trackDeco(false);
+  let h=`<div class="gbody" id="gbody"><div class="ghead"><div class="glab">Row · install window</div><div class="gtrack trackhead">${trackDeco(true)}</div></div>`;
+  for(const r of S.rows){const c=C.rows[r.id];if(!rowMatches(r,q,tagsBy[r.id]||[]))continue;const done=c.done;const dl=c.ef-r.bFinish;
+    h+=`<div class="grow2${done?' done':''}" data-id="${r.id}"><div class="glab" title="${esc(r.name)} · ${fmt(c.es)} – ${fmt(c.ef)}${c.pushed?' · held by '+esc(c.why):''}"><span class="gn">${esc(r.name)}</span><span class="gd">${done?'done':fmt(c.es)+'–'+fmt(c.ef)}${!done&&dl?` <span class="delta ${dl>0?'up':'dn'}">${dl>0?'+':'−'}${Math.abs(dl)}d</span>`:''}</span></div>
+      <div class="gtrack track">${deco}<div class="bbar" style="left:${pct(r.bStart)};width:calc(${pct(r.bFinish+1)} - ${pct(r.bStart)})"></div><div class="gbar${c.pushed?' pushed':''}${done?' donebar':''}" style="left:${pct(c.es)};width:calc(${pct(c.ef+1)} - ${pct(c.es)})" title="${esc(r.name)}: ${fmt(c.es)} – ${fmt(c.ef)}">${done?'':'<div class="h"></div>'}</div></div></div>`}
+  const g=document.getElementById('gantt');const old=document.getElementById('gbody');const st=old?old.scrollTop:0;g.innerHTML=h+'</div>';document.getElementById('gbody').scrollTop=st;
+}
+const kindTxt=k=>k==='actual'?'actual':k==='forecast'?'reforecast':k==='milestone'?'delivery':k==='none'?'':'planned';
+function detailHtml(r,ts){
+  const cnt={};for(const t of S.tags)cnt[t.part]=(cnt[t.part]||0)+1;
+  let h=`<table class="inner"><thead><tr><th>Tag</th><th>Name</th><th>Status</th><th>Part</th><th class="num">Hours</th><th>Request</th><th>Receipt</th><th>Eng. review</th><th>Comment</th><th></th></tr></thead><tbody>`;
+  for(const t of ts){const c=C.tags[t.tag]||{};
+    const dcell=(d,k)=>d==null?(k==='none'?'<span class="kind">factory</span>':'—'):`${fmt(d)} <span class="kind${k==='actual'?' act':''}">${kindTxt(k)}</span>`;
+    h+=`<tr data-tag="${esc(t.tag)}"><td><b>${esc(t.tag)}</b></td><td>${esc(t.name)}</td><td><span class="pill ${t.status.replace(' ','')}">${t.status}</span>${t.status==='Installed'?' '+fmt(t.inst):''}</td>
+      <td>${esc(t.part)}${cnt[t.part]>1?` <span class="kind">×${cnt[t.part]} tags</span>`:''}</td>
+      <td class="num"><input type="number" class="iHrs" min="0" step="0.5" value="${hoursOf(S,t)}" data-part="${esc(t.part)}"></td>
+      <td>${dcell(c.req,c.reqK)}</td><td>${dcell(c.recv,c.recvK)}</td><td>${dcell(c.review,c.revK)}</td><td class="sub">${esc(t.comment)}</td>
+      <td><button class="btn sm iUpd">Update</button></td></tr>`}
+  return h+'</tbody></table>';
+}
+function aheadTo(){return isoToDn(document.getElementById('aheadTo').value)??TODAY+S.settings.lookDays}
+function aheadItems(){const to=aheadTo();return C.items.filter(i=>i.date>=TODAY&&i.date<=to)}
+function listHtml(arr,late){
+  if(!arr.length)return`<div class="empty">${late?'Nothing is past its planned date.':'Nothing is due in this window. Try a longer window.'}</div>`;
+  const rowOf={};S.rows.forEach(r=>rowOf[r.id]=r);
+  let h=`<div class="tablewrap"><table><thead><tr><th>${late?'Was due':'Due'}</th>${late?'<th class="num">Days late</th>':''}<th>Step</th><th>Item</th><th>Row</th><th></th></tr></thead><tbody>`;
+  arr.forEach((i,ix)=>{h+=`<tr><td>${fmtY(i.date)}${i.fc?' <span class="kind">reforecast</span>':''}</td>${late?`<td class="num late">${TODAY-i.date}</td>`:''}<td><b>${i.kind}</b></td><td><b>${esc(i.label)}</b><div class="sub">${esc(i.sub)}</div></td><td class="sub">${esc(i.row?(rowOf[i.row]||{}).name||'':'')}</td><td><button class="btn sm" data-item="${late?'L':'A'}${ix}">Update</button></td></tr>`});
+  return h+'</tbody></table></div>';
+}
+let LISTS={A:[],L:[]};
+function renderLists(){LISTS.A=aheadItems();LISTS.L=C.items.filter(i=>i.date<TODAY);
+  document.getElementById('aheadList').innerHTML=listHtml(LISTS.A,false);document.getElementById('lateList').innerHTML=listHtml(LISTS.L,true)}
+function renderParts(){
+  const q=document.getElementById('pq').value.trim().toLowerCase();const by={};for(const t of S.tags)(by[t.part]??=[]).push(t);
+  let h=`<thead><tr><th>Part number</th><th>Tags with this part</th><th class="num">Baseline hours</th><th class="num">Hours each</th><th class="num">Change</th><th class="num">Total hours</th></tr></thead><tbody>`;
+  for(const p of Object.values(S.parts).sort((a,b)=>a.pn.localeCompare(b.pn))){const ts=by[p.pn]||[];
+    if(q&&!(p.pn.toLowerCase().includes(q)||ts.some(t=>t.tag.toLowerCase().includes(q)||t.name.toLowerCase().includes(q))))continue;
+    const d=p.hours-p.bHours;
+    h+=`<tr><td><b>${esc(p.pn)}</b></td><td class="sub">${ts.map(t=>esc(t.tag)+' '+esc(t.name)+(t.status==='Installed'?' (installed)':'')).join('<br>')}</td><td class="num">${p.bHours}</td><td class="num"><input type="number" class="iPart" min="0" step="0.5" data-part="${esc(p.pn)}" value="${p.hours}"></td><td class="num"><span class="delta ${d>0?'up':d<0?'dn':''}">${d?((d>0?'+':'−')+Math.abs(r1(d))):''}</span></td><td class="num">${nf(p.hours*ts.length)}</td></tr>`}
+  document.getElementById('partsT').innerHTML=h+'</tbody>';
+}
+function renderChanges(){
+  const c=S.changes;if(!c.length){document.getElementById('chgList').innerHTML='<div class="empty">No changes yet. Every change you make is listed here and goes into the Excel download.</div>';return}
+  let h='<div class="tablewrap"><table><thead><tr><th>When</th><th>Action</th><th>Item</th><th>Field</th><th>From</th><th>To</th><th>Comment</th></tr></thead><tbody>';
+  for(const x of [...c].reverse())h+=`<tr><td class="sub">${esc(x.when)}</td><td><b>${esc(x.action)}</b></td><td>${esc(x.item)}</td><td>${esc(x.field)}</td><td>${esc(x.from)}</td><td>${esc(x.to)}</td><td class="sub">${esc(x.comment)}</td></tr>`;
+  document.getElementById('chgList').innerHTML=h+'</tbody></table></div>';
+}
+
+/* ============ charts ============ */
+function pal(theme){const cs=getComputedStyle(document.documentElement);const g=n=>cs.getPropertyValue(n).trim();
+  if(theme==='light')return{bg:'#ffffff',ink:'#111111',ink2:'#555555',line:'#dddddd',actual:'#1b7f4b',forecast:'#111111',base:'#9a9a9a',bar:'#cfcfcf',ot:'#d9542b',shade:'#f1f1f1',warn:'#b26a00',late:'#c23b22'};
+  return{bg:g('--bg'),ink:g('--ink'),ink2:g('--ink2'),line:g('--line'),actual:g('--actual'),forecast:g('--forecast'),base:g('--base'),bar:g('--bar'),ot:g('--ot'),shade:g('--shade'),warn:g('--warn'),late:g('--late')}}
+function seriesData(St,R){
+  // cumulative daily from x0 to x1: actual (to today), forecast, and tags
+  const inst=R.install.slice().sort((a,b)=>a[0]-b[0]);
+  return{inst,load:R.load,rows:R.rows,tagsFin:St.tags.filter(t=>t.status!=='Installed').map(t=>R.tags[t.tag]?.finish).filter(x=>x!=null)};
+}
+function cumul(x0,x1,R,St,mode){ // mode 'hrs'|'tags'
+  const out=[];const inst=new Map();for(const[d,h]of R.install){const k=Math.max(d,x0);inst.set(k,(inst.get(k)||0)+(mode==='hrs'?h:1))}
+  const plan=new Map();if(mode==='hrs'){for(const[d,h]of R.load)plan.set(d,(plan.get(d)||0)+h)}else{for(const t of St.tags)if(t.status!=='Installed'){const f=R.tags[t.tag]?.finish;if(f!=null)plan.set(f,(plan.get(f)||0)+1)}}
+  let a=0,p=0;for(let d=x0;d<=x1;d++){a+=inst.get(d)||0;p+=plan.get(d)||0;out.push([d,a,a+p])}
+  // anything before x0 in plan
+  return out;
+}
+function niceMax(v){if(v<=0)return 1;const e=Math.pow(10,Math.floor(Math.log10(v)));const m=v/e;for(const k of[1,1.5,2,2.5,3,4,5,6,7.5,8,10])if(m<=k+1e-9)return k*e;return 10*e}
+function setupCanvas(cv,W,H){const dpr=window.devicePixelRatio||1;if(W==null){W=cv.clientWidth||600;H=+cv.getAttribute('height');if(window.innerWidth<700)H=Math.min(H,220)}cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,W,H}}
+function axes(ctx,W,H,P,x0,x1,ymax,p,fs,yfmt){
+  const L=P.l,T=P.t,Wd=W-P.l-P.r,Hd=H-P.t-P.b;ctx.font=`${fs}px Lato, sans-serif`;ctx.fillStyle=p.ink2;ctx.strokeStyle=p.line;ctx.lineWidth=1;ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let i=0;i<=4;i++){const v=ymax*i/4,y=T+Hd-Hd*i/4;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(L+Wd,y);ctx.stroke();ctx.fillText(yfmt(v),L-6,y)}
+  ctx.textAlign='center';ctx.textBaseline='top';const s=new Date(x0*DAY);let y=s.getUTCFullYear(),m=s.getUTCMonth()+1;
+  const X=d=>L+(d-x0)/(x1-x0||1)*Wd;const span=x1-x0;const step=span>500?3:span>250?2:1;let k=0;
+  for(;;){if(m>11){m=0;y++}const d=Date.UTC(y,m,1)/DAY;if(d>x1)break;if(k++%step===0){ctx.strokeStyle=p.line;ctx.beginPath();ctx.moveTo(X(d),T+Hd);ctx.lineTo(X(d),T+Hd+4);ctx.stroke();ctx.fillText(new Date(d*DAY).toLocaleDateString('en-CA',{timeZone:'UTC',month:'short'})+(m===0?" '"+String(y).slice(2):''),X(d),T+Hd+6)}m++}
+  ctx.strokeStyle=p.ink;ctx.beginPath();ctx.moveTo(L,T+Hd);ctx.lineTo(L+Wd,T+Hd);ctx.stroke();
+  return{X,Y:v=>T+Hd-v/ymax*Hd,L,T,Wd,Hd};
+}
+function shutRuns(x0,x1){let run=null,n=0;const out=[];for(let d=x0;d<=x1;d++){const w=wkday(d);if(w>0&&w<6){if(HOL.has(d)){if(!run){run=[d,d];n=0}run[1]=d;n++}else if(run){if(n>=3)out.push(run);run=null}}}if(run&&n>=3)out.push(run);return out}
+function shadeShut(ctx,A,x0,x1,p){const out=shutRuns(x0,x1);
+  ctx.fillStyle=p.shade;for(const[a,b]of out)ctx.fillRect(A.X(a),A.T,A.X(b+3)-A.X(a),A.Hd)}
+function vmark(ctx,A,d,label,color,fs,dash,row){if(d==null)return;const x=A.X(d);if(x<A.L||x>A.L+A.Wd)return;ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash(dash?[5,4]:[]);ctx.beginPath();ctx.moveTo(x,A.T);ctx.lineTo(x,A.T+A.Hd);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=color;ctx.font=`bold ${fs}px Lato, sans-serif`;ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(label,x+4,A.T+2+(row||0)*(fs+3));ctx.restore()}
+function path(ctx,A,pts,color,w,dash){ctx.save();ctx.strokeStyle=color;ctx.lineWidth=w;ctx.setLineDash(dash||[]);ctx.lineJoin='round';ctx.beginPath();pts.forEach(([x,y],i)=>i?ctx.lineTo(A.X(x),A.Y(y)):ctx.moveTo(A.X(x),A.Y(y)));ctx.stroke();ctx.restore()}
+const CH={};
+function drawS(cv,mode,o){
+  o=o||{};const p=pal(o.theme);const {ctx,W,H}=setupCanvas(cv,o.W,o.H);const fs=o.fs||13;
+  ctx.fillStyle=p.bg;ctx.fillRect(0,0,W,H);
+  const firstAct=Math.min(...C.install.map(x=>x[0]),...BC.install.map(x=>x[0]),TODAY);
+  const x0=firstAct-7,x1=Math.max(C.finish||TODAY,BC.finish||TODAY)+10;
+  const cur=cumul(x0,x1,C,S,mode),bas=cumul(x0,x1,BC,BASE,mode);
+  const tot=Math.max(cur[cur.length-1][2],bas[bas.length-1][2]);const ymax=niceMax(tot*1.05);
+  const A=axes(ctx,W,H,{l:fs*4.2,r:12,t:10,b:fs*2.2},x0,x1,ymax,p,fs,v=>mode==='hrs'?nf(v):String(Math.round(v)));
+  shadeShut(ctx,A,x0,x1,p);
+  const step=(x1-x0)>300?2:1;const smp=a=>a.filter((x,i)=>i%step===0||i===a.length-1);
+  path(ctx,A,smp(bas.filter(x=>x[0]>=Math.min(TODAY,BASE.settings.statusDate))).map(x=>[x[0],x[2]]),p.base,2,[7,5]);
+  path(ctx,A,smp(cur.filter(x=>x[0]>=TODAY)).map(x=>[x[0],x[2]]),p.forecast,2.4);
+  path(ctx,A,cur.filter(x=>x[0]<=TODAY).map(x=>[x[0],x[1]]),p.actual,3);
+  vmark(ctx,A,TODAY,'Today',p.late,fs-1,false,0);
+  const ms=Object.values(S.milestones);ms.forEach((m,i)=>{vmark(ctx,A,m.date,m.id==='NAV'?'◆ Nav consoles':'◆ '+m.id,p.warn,fs-1,true,i+1);if(m.base!==m.date)vmark(ctx,A,m.base,'',p.base,fs-1,true)});
+  const last=cur[cur.length-1];ctx.fillStyle=p.ink2;ctx.font=`${fs-1}px Lato, sans-serif`;ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(`Total ${mode==='hrs'?nf(last[2])+' h':last[2]+' tags'}`,A.L+A.Wd,A.Y(last[2])-4);
+  CH[cv.id]={A,hover:d=>{const i=d-x0;if(i<0||i>=cur.length)return null;const c=cur[i],b=bas[i];const u=mode==='hrs'?' h':' tags';return`<b>${fmtY(d)}</b><br>${d<=TODAY?'Actual '+nf(c[1])+u+'<br>':''}${d>=TODAY?'Forecast '+nf(c[2])+u+'<br>':''}Baseline ${nf(b[2])}${u}`},x0,x1};
+}
+function drawLoad(cv,o){
+  o=o||{};const p=pal(o.theme);const {ctx,W,H}=setupCanvas(cv,o.W,o.H);const fs=o.fs||13;ctx.fillStyle=p.bg;ctx.fillRect(0,0,W,H);
+  const x0=o.x0??TL.a,x1=o.x1??TL.b+1;
+  const m0=monday(x0),m1=monday(x1);
+  const weeks=[];for(let m=m0;m<=m1;m+=7)weeks.push({m,h:C.weeks.get(m)||0,b:BC.weeks.get(m)||0,cap:capWeek(S,m),bcap:capWeek(BASE,m)});
+  const ymax=niceMax(Math.max(1,...weeks.map(w=>Math.max(w.h,w.b,w.cap)))*1.08);
+  const A=axes(ctx,W,H,{l:o.plotL??fs*3.4,r:o.plotR??12,t:10,b:fs*2.2},x0,x1,ymax,p,fs,v=>nf(v));
+  ctx.save();ctx.beginPath();ctx.rect(A.L,0,A.Wd,H);ctx.clip();
+  shadeShut(ctx,A,x0,x1,p);
+  const bw=Math.max(1,A.X(m0+7)-A.X(m0)-2);
+  for(const w of weeks){const x=A.X(w.m)+1;const yb=A.Y(Math.min(w.h,w.cap));ctx.fillStyle=p.bar;ctx.fillRect(x,yb,bw,A.T+A.Hd-yb);if(w.h>w.cap){ctx.fillStyle=p.ot;ctx.fillRect(x,A.Y(w.h),bw,A.Y(w.cap)-A.Y(w.h))}}
+  // capacity step
+  ctx.save();ctx.strokeStyle=p.ink;ctx.lineWidth=2;ctx.beginPath();weeks.forEach((w,i)=>{const x=A.X(w.m),y=A.Y(w.cap);i?ctx.lineTo(x,y):ctx.moveTo(x,y);ctx.lineTo(A.X(w.m+7),y)});ctx.stroke();ctx.restore();
+  // baseline step
+  ctx.save();ctx.strokeStyle=p.base;ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();weeks.forEach((w,i)=>{const x=A.X(w.m),y=A.Y(w.b);i?ctx.lineTo(x,y):ctx.moveTo(x,y);ctx.lineTo(A.X(w.m+7),y)});ctx.stroke();ctx.restore();
+  if(TODAY>=x0&&TODAY<=x1)vmark(ctx,A,TODAY,'Today',p.late,fs-1,false,2);
+  Object.values(S.milestones).forEach((m,i)=>vmark(ctx,A,m.date,m.id==='NAV'?'◆ Nav consoles':'◆ '+m.id,p.warn,fs-1,true,i));
+  ctx.restore();
+  CH[cv.id]={A,hover:d=>{const w=weeks.find(w=>d>=w.m&&d<w.m+7);if(!w)return null;return`<b>Week of ${fmtY(w.m)}</b><br>Needed ${nf(w.h)} h · capacity ${nf(w.cap)} h<br>${w.h>w.cap?'<span style="color:var(--ot)">Overtime '+nf(w.h-w.cap)+' h</span><br>':''}Baseline ${nf(w.b)} h`}};
+}
+function ganttGeom(){const gb=document.getElementById('gbody');const lab=gb&&gb.querySelector('.grow2 .glab, .ghead .glab');if(!gb||!lab)return{};return{plotL:lab.getBoundingClientRect().width,plotR:gb.offsetWidth-gb.clientWidth}}
+function renderCharts(){if(VIEW!=='sched')return;drawLoad(document.getElementById('cLoad'),ganttGeom());drawS(document.getElementById('cHrs'),'hrs');drawS(document.getElementById('cTags'),'tags')}
+function hookTips(){for(const id of['cLoad','cHrs','cTags']){const cv=document.getElementById(id);const tip=cv.nextElementSibling;
+  const show=e=>{const ch=CH[id];if(!ch)return;const r=cv.getBoundingClientRect();const x=e.clientX-r.left;if(x<ch.A.L||x>ch.A.L+ch.A.Wd){tip.style.display='none';return}
+    const html=ch.hover(invX(ch,x));if(!html){tip.style.display='none';return}tip.innerHTML=html;tip.style.display='block';
+    const px=Math.min(x+14,cv.clientWidth-tip.offsetWidth-4);tip.style.left=Math.max(0,px)+'px';tip.style.top=(e.clientY-r.top+18)+'px'};
+  cv.addEventListener('pointermove',show);cv.addEventListener('pointerdown',show);
+  cv.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')tip.style.display='none'})}}
+function invX(ch,x){let lo=-1e6,hi=1e6;for(let i=0;i<50;i++){const m=(lo+hi)/2;if(ch.A.X(m)<x)lo=m;else hi=m}return Math.floor(lo)}
+
+/* ============ editing ============ */
+const rowById=id=>S.rows.find(r=>r.id===id);
+function setRow(r,start,finish,how){
+  const c=C.rows[r.id];const os=c.es,of=c.ef;
+  start=nextWork(start);finish=prevWork(Math.max(finish,start));if(finish<start)finish=start;
+  if(start===os&&finish===of&&r.start===start&&r.finish===finish)return refresh();
+  commit(()=>{r.start=start;r.finish=finish;log(how||'Move',r.name,'Install window',`${dnToIso(os)} → ${dnToIso(of)}`,`${dnToIso(start)} → ${dnToIso(finish)}`)});
+  const n=C.rows[r.id];if(n.pushed&&n.es>start)toast(`Held: can't start before ${fmt(n.es)} (${n.why})`);
+}
+function onGridChange(e){
+  const tr=e.target.closest('tr.grow');
+  if(e.target.classList.contains('iHrs'))return setPart(e.target.dataset.part,e.target.value);
+  if(!tr)return;const r=rowById(tr.dataset.id);const c=C.rows[r.id];const v=e.target.value;
+  if(e.target.classList.contains('iStart')){const d=isoToDn(v);if(d==null)return refresh();setRow(r,d,addWork(d,c.dur),'Change start')}
+  else if(e.target.classList.contains('iDur')){if(String(v).trim()===''||!(+v>0))return refresh();const n=Math.max(1,Math.round(+v));setRow(r,c.es,addWork(c.es,n),'Change duration')}
+  else if(e.target.classList.contains('iFin')){const d=isoToDn(v);if(d==null)return refresh();if(d<c.es){toast('Finish can’t be before the start');return refresh()}setRow(r,c.es,d,'Change finish')}
+}
+function setPart(pn,v){const p=S.parts[pn];if(String(v).trim()==='')return refresh();const n=Math.max(0,+v);if(!p||!isFinite(n)||n===p.hours)return refresh();const cnt=S.tags.filter(t=>t.part===pn).length;
+  commit(()=>{log('Change hours','Part '+pn,`Hours per tag (${cnt} tag${cnt>1?'s':''})`,p.hours,n);p.hours=n});toast(`Part ${pn}: ${n} h on ${cnt} tag${cnt>1?'s':''}`)}
+/* drag on bars */
+let DRAG=null;
+function onDown(e){const bar=e.target.closest('.gbar');if(!bar||bar.classList.contains('donebar'))return;const tr=bar.closest('[data-id]');const r=rowById(tr.dataset.id);const c=C.rows[r.id];
+  const track=bar.parentElement;const w=track.getBoundingClientRect().width;DRAG={r,c,bar,mode:e.target.classList.contains('h')?'end':'move',x:e.clientX,ppd:w/(TL.b-TL.a+1),days:0,orig:{start:r.start,finish:r.finish}};
+  bar.setPointerCapture(e.pointerId);bar.classList.add('drag');e.preventDefault()}
+function onMove(e){if(!DRAG)return;const days=Math.round((e.clientX-DRAG.x)/DRAG.ppd);if(days===DRAG.days)return;DRAG.days=days;
+  const {r,c}=DRAG;if(DRAG.mode==='move'){const s=nextWork(c.es+days);r.start=s;r.finish=addWork(s,c.dur)}else{r.start=c.es;r.finish=prevWork(Math.max(c.es,c.ef+days))}
+  cancelAnimationFrame(onMove.h);onMove.h=requestAnimationFrame(()=>{const n=compute(S);n.stats=weeklyStats(S,n);n.items=items(S,n);const keep=C;C=n;
+    const nc=C.rows[r.id];DRAG.bar.style.left=pct(nc.es);DRAG.bar.style.width=`calc(${pct(nc.ef+1)} - ${pct(nc.es)})`;DRAG.bar.title=`${fmt(nc.es)} – ${fmt(nc.ef)}`;
+    const gd=DRAG.bar.closest('.grow2')?.querySelector('.gd');if(gd)gd.textContent=fmt(nc.es)+'–'+fmt(nc.ef);const tr=document.querySelector(`#grid tr.grow[data-id="${r.id}"]`);if(tr){tr.querySelector('.iStart').value=dnToIso(nc.es);tr.querySelector('.iFin').value=dnToIso(nc.ef);tr.querySelector('.iDur').value=nc.dur}
+    renderTop();renderCharts()})}
+function onUp(){if(!DRAG)return;const {r,orig,days}=DRAG;DRAG.bar.classList.remove('drag');const s=r.start,f=r.finish;r.start=orig.start;r.finish=orig.finish;const d=DRAG;DRAG=null;
+  if(!days){refresh();return}C=compute(S);C.stats=weeklyStats(S,C);C.items=items(S,C);setRow(r,s,f,d.mode==='move'?'Drag move':'Drag stretch')}
+
+/* ============ status / reforecast modal ============ */
+let UPD=null;
+function openUpdate(item,fromTag){
+  UPD={item,fromTag};const card=document.getElementById('updCard');const multi=item.tags.length>1;
+  const kinds=['Request','Receipt','Install','Engineer Review'];
+  const doneTxt={Request:'Request made',Receipt:'Received on site','Install':'Installed','Engineer Review':'Engineer reviewed'};
+  const t0=S.tags.find(t=>t.tag===item.tags[0]);
+  card.innerHTML=`<h2>Update · ${esc(item.label)}</h2><p class="note">${esc(item.sub||'')}</p>
+   ${fromTag?`<div class="row"><label>Step</label><select id="uKind">${kinds.map(k=>`<option ${k===item.kind?'selected':''}>${k}</option>`).join('')}</select></div>`:`<p><b>${item.kind}</b> · planned ${fmtY(item.date)}</p>`}
+   ${multi?`<div class="row"><label>Tags</label></div><div class="taglist">${item.tags.map(t=>`<label><input type="checkbox" class="uTag" value="${esc(t)}" checked> ${esc(t)} ${esc((S.tags.find(x=>x.tag===t)||{}).name||'')}</label>`).join('')}</div>`:''}
+   <div class="row"><label class="choice"><input type="radio" name="uAct" value="done" checked> <span id="uDoneTxt">${doneTxt[item.kind]}</span> on</label><input type="date" id="uDone" value="${dnToIso(isFinite(item.date)?Math.min(TODAY,Math.max(item.date,TODAY-60)):TODAY)}"></div>
+   <div class="row"><label class="choice"><input type="radio" name="uAct" value="fc"> Reforecast to</label><input type="date" id="uFc" value="${dnToIso(isFinite(item.date)?item.date:TODAY)}"></div>
+   <div class="row" id="uHow" style="display:none"><label class="choice"><input type="radio" name="uMv" value="shift" checked> Shift the whole window</label><label class="choice"><input type="radio" name="uMv" value="stretch"> Keep start, move finish</label></div>
+   <div class="row"><label class="choice"><input type="radio" name="uAct" value="note"> Comment only</label></div>
+   <div class="row" style="flex-direction:column;align-items:stretch"><label>Comment</label><textarea id="uCom" rows="2">${esc(item.kind==='Install'&&item.row?(rowById(item.row)||{}).comment||'':t0?.comment||'')}</textarea></div>
+   <p class="note" id="uHint"></p><p class="err" id="uErr"></p>
+   <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn" id="uSave">Save</button></div>`;
+  const sync=()=>{const k=fromTag?card.querySelector('#uKind').value:item.kind;card.querySelector('#uDoneTxt').textContent=doneTxt[k];const fc=card.querySelector('input[name=uAct]:checked').value==='fc';
+    card.querySelector('#uHow').style.display=fc&&k==='Install'?'flex':'none';
+    const rows=item.row?rowById(item.row):null;const nTags=rows?S.tags.filter(t=>t.row===rows.id&&t.status!=='Installed').length:0;
+    card.querySelector('#uHint').textContent=k==='Install'&&fc?`Reforecasting the install moves the whole row${nTags>1?` (${nTags} tags)`:''}; loading and charts update.`:k==='Request'&&fc?'Receipt follows 14 days later; a later receipt holds the install back.':k==='Receipt'&&fc?'A receipt later than the install start holds the install back.':''};
+  card.querySelectorAll('input,select').forEach(x=>x.addEventListener('change',sync));sync();
+  document.getElementById('mUpd').classList.add('on');
+}
+function saveUpdate(){
+  const card=document.getElementById('updCard');const {item,fromTag}=UPD;const kind=fromTag?card.querySelector('#uKind').value:item.kind;
+  const act=card.querySelector('input[name=uAct]:checked').value;const com=card.querySelector('#uCom').value.trim();
+  const sel=item.tags.length>1?[...card.querySelectorAll('.uTag:checked')].map(x=>x.value):item.tags;
+  const err=m=>{card.querySelector('#uErr').textContent=m};
+  if(!sel.length)return err('Pick at least one tag.');
+  const tags=sel.map(t=>S.tags.find(x=>x.tag===t));
+  if(act==='done'){const d=isoToDn(card.querySelector('#uDone').value);if(d==null)return err('Enter the date it happened.');if(d>TODAY)return err('A done date can’t be in the future. Use Reforecast instead.');
+    commit(()=>{for(const t of tags){
+      if(kind==='Request'){log('Status',t.tag,'Requested (actual)',dnToIso(t.req),dnToIso(d),com);t.req=d;if(t.status==='Not Started')t.status='Requested';t.fReq=null}
+      else if(kind==='Receipt'){log('Status',t.tag,'Received (actual)',dnToIso(t.recv),dnToIso(d),com);t.recv=d;if(t.status!=='Installed')t.status='WIP';t.fRecv=null}
+      else if(kind==='Install'){log('Status',t.tag,'Installed (actual)',t.status,`Installed ${dnToIso(d)}`,com);t.inst=d;t.status='Installed'}
+      else{log('Status',t.tag,'Engineer reviewed (actual)',dnToIso(t.rev),dnToIso(d),com);t.rev=d;t.fRev=null}
+      if(com)t.comment=com}});
+  }else if(act==='fc'){const d=isoToDn(card.querySelector('#uFc').value);if(d==null)return err('Enter the new forecast date.');
+    if(kind==='Install'){const r=rowById(tags[0].row);if(!r)return err('This tag has no schedule row.');const c=C.rows[r.id];const how=card.querySelector('input[name=uMv]:checked').value;
+      let s=c.es,f=d;if(how==='shift'){f=prevWork(d);s=c.es+(f-c.ef);s=nextWork(s);f=addWork(s,c.dur)}else if(d<c.es)return err('Finish can’t be before the start ('+fmt(c.es)+').');
+      document.getElementById('mUpd').classList.remove('on');setRow(r,s,f,'Reforecast install');if(com){S.changes[S.changes.length-1].comment=com;r.comment=com;refresh(true)}return}
+    commit(()=>{for(const t of tags){const c=C.tags[t.tag]||{};
+      if(kind==='Request'){if(t.req!=null)continue;log('Reforecast',t.tag,'Request',dnToIso(c.req),dnToIso(d),com);t.fReq=d}
+      else if(kind==='Receipt'){if(t.recv!=null)continue;log('Reforecast',t.tag,'Receipt',dnToIso(c.recv),dnToIso(d),com);t.fRecv=d}
+      else{log('Reforecast',t.tag,'Engineer review',dnToIso(c.review),dnToIso(d),com);t.fRev=d}
+      if(com)t.comment=com}});
+  }else{if(!com)return err('Type a comment.');commit(()=>{if(kind==='Install'&&item.row&&!fromTag){const r=rowById(item.row);log('Comment',r.name,'Comment',r.comment,com);r.comment=com}else for(const t of tags){log('Comment',t.tag,kind,t.comment,com);t.comment=com}})}
+  document.getElementById('mUpd').classList.remove('on');toast('Saved');
+}
+
+/* ============ downloads ============ */
+function fileStamp(){const n=new Date();return n.toLocaleDateString('en-CA')+' '+String(n.getHours()).padStart(2,'0')+String(n.getMinutes()).padStart(2,'0')}
+let DLAPI=null;try{if(window.claude&&window.claude.use)window.claude.use('downloads').then(a=>{DLAPI=a}).catch(()=>{})}catch(e){}
+async function dlBlob(blob,name){if(DLAPI){try{await DLAPI.save({filename:name,data:blob});return true}catch(e){if(e&&e.code==='declined')toast('Save cancelled');else if(e&&e.code==='host_unavailable')toast('This app can’t save files. Open Install Path in a browser to download.');else toast('Could not save: '+((e&&e.message)||(e&&e.code)||'unknown'));return false}}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+function buildExcel(){
+  const st=S.settings;const D='d',N='n',T='s';const sh=[];
+  sh.push({name:'Read Me',cols:[{h:'Install Path',w:26},{h:'',w:110}],rows:[['Saved',stamp()],['Plan',st.plan],['Loaded from',FILENAME],['What this is','The current Install Path state. Load it back into Install Path to carry on: the Baseline columns still hold the original plan. The Tag Dates tab has every planned and actual date with task IDs for the Microsoft Project file.'],['Keep the layout','Keep tab names, headings, Row IDs, tags and part numbers as they are.'],['Changes',`${S.changes.length} change(s) listed on the Changes tab.`]]});
+  const setv=[['Plan',st.plan,''],['Status date',dnToIso(st.statusDate),'Date the baseline actuals are good to'],['Technicians',st.techs,''],['Hours per technician per day',st.hpd,''],['Request to receipt (days)',st.lead,''],['Receipt before install (days)',st.buffer,''],['Review after install (days)',st.revGap,''],['Review team available',dnToIso(st.revFloor),''],['Restart',dnToIso(st.restart),''],['Paperwork hours per step',st.paper,''],['Look-ahead (days)',st.lookDays,''],['Baseline technicians',st.baseTechs,'Do not change'],['Baseline hours per day',st.baseHpd,'Do not change']];
+  sh.push({name:'Settings',cols:[{h:'Setting',w:30,t:T},{h:'Value',w:14},{h:'Notes',w:40,t:T}],rows:setv});
+  sh.push({name:'Milestones',cols:[{h:'ID',w:8,t:T},{h:'Milestone',w:34,t:T},{h:'Baseline Date',w:14,t:D},{h:'Date',w:14,t:D}],rows:Object.values(S.milestones).map(m=>[m.id,m.name,m.base,m.date])});
+  sh.push({name:'Rows',cols:[{h:'Row ID',w:8,t:T},{h:'Row',w:44,t:T},{h:'SWBS',w:40,t:T},{h:'Type',w:13,t:T},{h:'Milestone',w:10,t:T},{h:'Baseline Start',w:13,t:D},{h:'Baseline Finish',w:13,t:D},{h:'Start',w:13,t:D},{h:'Finish',w:13,t:D},{h:'Comment',w:40,t:T}],rows:S.rows.map(r=>[r.id,r.name,r.swbs,r.type,r.ms,r.bStart,r.bFinish,C.rows[r.id].es,C.rows[r.id].ef,r.comment])});
+  sh.push({name:'Tags',cols:[{h:'Task ID',w:8,t:T},{h:'Tag',w:15,t:T},{h:'Tag Name',w:38,t:T},{h:'SWBS',w:34,t:T},{h:'Phase',w:6,t:N},{h:'Part Number',w:13,t:T},{h:'Row ID',w:8,t:T},{h:'Baseline Status',w:12,t:T},{h:'Status',w:12,t:T},{h:'Requested (Actual)',w:12,t:D},{h:'Received (Actual)',w:12,t:D},{h:'Installed (Actual)',w:12,t:D},{h:'Engineer Reviewed (Actual)',w:12,t:D},{h:'Requested (Forecast)',w:12,t:D},{h:'Received (Forecast)',w:12,t:D},{h:'Engineer Reviewed (Forecast)',w:12,t:D},{h:'Comment',w:40,t:T}],
+    rows:S.tags.map(t=>[t.tid,t.tag,t.name,t.swbs,t.phase,t.part,t.row,t.bStatus,t.status,t.req,t.recv,t.inst,t.rev,t.fReq,t.fRecv,t.fRev,t.comment])});
+  const cnt={};S.tags.forEach(t=>cnt[t.part]=(cnt[t.part]||0)+1);
+  sh.push({name:'Parts',cols:[{h:'Part Number',w:14,t:T},{h:'Baseline Hours',w:12,t:N},{h:'Hours',w:10,t:N},{h:'Tags',w:7,t:N}],rows:Object.values(S.parts).sort((a,b)=>a.pn.localeCompare(b.pn)).map(p=>[p.pn,p.bHours,p.hours,cnt[p.pn]||0])});
+  sh.push({name:'Calendar',cols:[{h:'Date',w:13,t:D},{h:'Reason',w:36,t:T}],rows:S.cal.map(c=>[c.dn,c.reason])});
+  sh.push({name:'Changes',cols:[{h:'When',w:18,t:T},{h:'Action',w:18,t:T},{h:'Item',w:30,t:T},{h:'Field',w:24,t:T},{h:'From',w:24,t:T},{h:'To',w:24,t:T},{h:'Comment',w:40,t:T}],rows:S.changes.map(c=>[c.when,c.action,c.item,c.field,c.from,c.to,c.comment])});
+  // outputs
+  const late=C.items.filter(i=>i.date<TODAY).length;const dif=(a,b)=>a==null||b==null?null:a-b;
+  sh.push({name:'Summary',cols:[{h:'Figure',w:34,t:T},{h:'Current',w:16},{h:'Baseline',w:16},{h:'Difference',w:14}],rows:[
+    ['Last install',C.finish,BC.finish,dif(C.finish,BC.finish)],['All but FDCR installed',C.finishEx,BC.finishEx,dif(C.finishEx,BC.finishEx)],['Peak week (hours)',r1(C.stats.peak),r1(BC.stats.peak),r1(C.stats.peak-BC.stats.peak)],['Total overtime (hours)',r1(C.stats.ot),r1(BC.stats.ot),r1(C.stats.ot-BC.stats.ot)],['Install hours left',r1(C.remHours),r1(BC.remHours),r1(C.remHours-BC.remHours)],['Tags left',C.remTags,BC.remTags,C.remTags-BC.remTags],['Technicians',st.techs,st.baseTechs,st.techs-st.baseTechs],['Milestone: Nav consoles delivered',S.milestones.NAV?.date,S.milestones.NAV?.base,dif(S.milestones.NAV?.date,S.milestones.NAV?.base)],['Milestone: FDCR delivered',S.milestones.FDCR?.date,S.milestones.FDCR?.base,dif(S.milestones.FDCR?.date,S.milestones.FDCR?.base)],['Late items (as of '+dnToIso(TODAY)+')',late,'',''],['Note',`Peak and overtime include ${st.paper} h paperwork per request/receipt step, placed on the step's date.`,'','']]});
+  // fix date display in summary: convert date rows to ISO text
+  sh[sh.length-1].rows.forEach(r=>{if(['Last install','All but FDCR installed','Milestone: Nav consoles delivered','Milestone: FDCR delivered'].includes(r[0])){r[1]=dnToIso(r[1]);r[2]=dnToIso(r[2]);r[3]=r[3]==null?'':r[3]+' days'}});
+  const rowOf={};S.rows.forEach(r=>rowOf[r.id]=r);
+  sh.push({name:'Tag Dates',cols:[{h:'Task ID',w:8,t:T},{h:'Tag',w:15,t:T},{h:'Tag Name',w:36,t:T},{h:'SWBS',w:30,t:T},{h:'Row',w:30,t:T},{h:'Status',w:11,t:T},{h:'Install Hours',w:9,t:N},{h:'Request',w:12,t:D},{h:'Request Basis',w:12,t:T},{h:'Receipt',w:12,t:D},{h:'Receipt Basis',w:12,t:T},{h:'Install Start',w:12,t:D},{h:'Install Finish',w:12,t:D},{h:'Install Basis',w:10,t:T},{h:'Engineer Reviewed',w:12,t:D},{h:'Review Basis',w:11,t:T},{h:'Milestone',w:9,t:T},{h:'Baseline Start',w:12,t:D},{h:'Baseline Finish',w:12,t:D},{h:'Finish vs Baseline (days)',w:10,t:N},{h:'Comment',w:36,t:T}],
+    rows:S.tags.map(t=>{const c=C.tags[t.tag]||{};const r=rowOf[t.row];const inst=t.status==='Installed';return[t.tid,t.tag,t.name,t.swbs,r?r.name:'',t.status,hoursOf(S,t),c.req,c.reqK==='none'?'factory':kindTxt(c.reqK),c.recv,kindTxt(c.recvK),inst?null:c.start,c.finish,inst?'actual':'planned',c.review,kindTxt(c.revK),r?r.ms:'',r?r.bStart:null,r?r.bFinish:null,(!inst&&r)?c.finish-r.bFinish:null,t.comment]})});
+  const ks=[...C.weeks.keys(),...BC.weeks.keys()];const m0=Math.min(...ks),m1=Math.max(...ks);const wk=[];
+  for(let m=m0;m<=m1;m+=7){const h=C.weeks.get(m)||0,c=capWeek(S,m),b=BC.weeks.get(m)||0,bc=capWeek(BASE,m);wk.push([m,r1(h),c,r1(Math.max(0,h-c)),r1(b),bc,r1(Math.max(0,b-bc))])}
+  sh.push({name:'Weekly Loading',cols:[{h:'Week of (Mon)',w:13,t:D},{h:'Hours needed',w:12,t:N},{h:'Capacity',w:10,t:N},{h:'Overtime',w:10,t:N},{h:'Baseline hours',w:13,t:N},{h:'Baseline capacity',w:13,t:N},{h:'Baseline overtime',w:13,t:N}],rows:wk});
+  for(const mode of['hrs','tags']){const firstAct=Math.min(...C.install.map(x=>x[0]),TODAY);const x0=firstAct-7,x1=Math.max(C.finish,BC.finish)+10;const cur=cumul(x0,x1,C,S,mode),bas=cumul(x0,x1,BC,BASE,mode);const rows=[];
+    for(let i=0;i<cur.length;i++){const d=cur[i][0];if(wkday(d)!==5&&i!==cur.length-1)continue;rows.push([d,d<=TODAY?r1(cur[i][1]):null,d>=TODAY?r1(cur[i][2]):null,r1(bas[i][2])])}
+    sh.push({name:mode==='hrs'?'S-Curve Hours':'S-Curve Tags',cols:[{h:'Week ending (Fri)',w:14,t:D},{h:mode==='hrs'?'Actual hours':'Actual tags',w:12,t:N},{h:mode==='hrs'?'Forecast hours':'Forecast tags',w:13,t:N},{h:mode==='hrs'?'Baseline hours':'Baseline tags',w:13,t:N}],rows})}
+  const li=(arr)=>arr.map(i=>[i.date,i.kind,i.label,i.sub,i.row?(rowOf[i.row]||{}).name:'',i.tags.join(', ')]);
+  const lc=[{h:'Date',w:12,t:D},{h:'Step',w:16,t:T},{h:'Item',w:34,t:T},{h:'Detail',w:30,t:T},{h:'Row',w:30,t:T},{h:'Tags',w:40,t:T}];
+  sh.push({name:'Look-ahead',cols:lc,rows:li(aheadItems())});sh.push({name:'Late Items',cols:lc,rows:li(C.items.filter(i=>i.date<TODAY))});
+  return writeXlsx(sh);
+}
+/* PDF: pages drawn on canvas, embedded as JPEG */
+async function buildPdf(){
+  const W=1650,H=1275;const pages=[];const p=pal('light');
+  const page=()=>{const cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);return{cv,x}};
+  const head=(x,title,n)=>{x.fillStyle='#111';x.font='600 40px "Source Serif 4", Georgia, serif';x.fillText('Install Path',60,80);x.font='bold 30px Lato, sans-serif';x.fillText(title,60,130);
+    x.font='20px Lato, sans-serif';x.fillStyle='#555';x.fillText(`${stamp()} · ${BUILD} · compared with the Baseline (the schedule as first issued) · page ${n}`,60,162);x.strokeStyle='#111';x.lineWidth=2;x.beginPath();x.moveTo(60,180);x.lineTo(W-60,180);x.stroke()};
+  const chartImg=(fn,w,h)=>{const cv=document.createElement('canvas');Object.defineProperty(cv,'clientWidth',{value:w});fn(cv,{theme:'light',W:w,H:h,fs:18});return cv};
+  const late=C.items.filter(i=>i.date<TODAY).length;
+  // page 1
+  {const {cv,x}=page();head(x,'Key figures and weekly loading',1);
+   const k=[['Last install',fmtY(C.finish),fmtY(BC.finish),C.finish!=null&&BC.finish!=null?(C.finish-BC.finish)+' days':''],['All but FDCR',fmtY(C.finishEx),fmtY(BC.finishEx),C.finishEx!=null&&BC.finishEx!=null?(C.finishEx-BC.finishEx)+' days':''],['Peak week',nf(C.stats.peak)+' h',nf(BC.stats.peak)+' h',nf(C.stats.peak-BC.stats.peak)+' h'],['Total overtime',nf(C.stats.ot)+' h',nf(BC.stats.ot)+' h',nf(C.stats.ot-BC.stats.ot)+' h'],['Install hours left',nf(C.remHours)+' h',nf(BC.remHours)+' h',nf(C.remHours-BC.remHours)+' h'],['Technicians',String(S.settings.techs),String(S.settings.baseTechs),String(S.settings.techs-S.settings.baseTechs)],['Milestone: Nav consoles delivered',fmtY(S.milestones.NAV?.date),fmtY(S.milestones.NAV?.base),((S.milestones.NAV?.date-S.milestones.NAV?.base)||0)+' days'],['Milestone: FDCR delivered',fmtY(S.milestones.FDCR?.date),fmtY(S.milestones.FDCR?.base),((S.milestones.FDCR?.date-S.milestones.FDCR?.base)||0)+' days'],['Late items',String(late),'','']];
+   x.font='bold 20px Lato, sans-serif';x.fillStyle='#555';['','Current','Baseline','Difference'].forEach((t,i)=>x.fillText(t,[60,520,760,1000][i],225));
+   k.forEach((r,i)=>{const y=262+i*34;x.font=(i<4?'bold ':'')+'21px Lato, sans-serif';x.fillStyle='#111';r.forEach((t,j)=>x.fillText(t,[60,520,760,1000][j],y))});
+   x.font='18px Lato, sans-serif';x.fillStyle='#555';x.fillText(`Changes made: ${S.changes.length} (listed on the last page and in the Excel download).`,60,262+k.length*34+6);
+   const ci=chartImg(drawLoad,W-120,560);x.font='bold 24px Lato, sans-serif';x.fillStyle='#111';x.fillText('Weekly loading vs technician capacity (grey = hours needed, red = overtime, black = capacity, dashed = Baseline)',60,640);x.drawImage(ci,60,660,W-120,560);pages.push(cv)}
+  {const {cv,x}=page();head(x,'S-curves: actual, forecast and Baseline',2);const h=490;
+   x.font='bold 24px Lato, sans-serif';x.fillStyle='#111';x.fillText('By install hours (green = actual, black = forecast, dashed = Baseline)',60,220);x.drawImage(chartImg((c,o)=>drawS(c,'hrs',o),W-120,h),60,235,W-120,h);
+   x.fillText('By tags installed',60,760);x.drawImage(chartImg((c,o)=>drawS(c,'tags',o),W-120,h),60,775,W-120,h);pages.push(cv)}
+  {const moved=S.rows.filter(r=>C.rows[r.id].ef!==r.bFinish||C.rows[r.id].es!==r.bStart);const chg=[...S.changes].reverse();let n=3;let {cv,x}=page();head(x,'What changed',n);let y=225;
+   const line=(t,b)=>{if(y>H-60){pages.push(cv);n++;({cv,x}=page());head(x,'What changed (continued)',n);y=225}x.font=(b?'bold ':'')+'19px Lato, sans-serif';x.fillStyle='#111';x.fillText(t.length>150?t.slice(0,147)+'…':t,60,y);y+=29};
+   line(`Rows that moved from the Baseline: ${moved.length}`,true);for(const r of moved){const c=C.rows[r.id];line(`${r.name}: ${fmt(r.bStart)} – ${fmt(r.bFinish)}  →  ${fmt(c.es)} – ${fmt(c.ef)}  (${c.ef-r.bFinish>=0?'+':''}${c.ef-r.bFinish} days)${c.pushed?'  held by '+c.why:''}`)}
+   y+=12;line(`Change list: ${chg.length} entries, newest first`,true);for(const c of chg)line(`${c.when}  ${c.action} · ${c.item} · ${c.field}: ${c.from} → ${c.to}${c.comment?'  “'+c.comment+'”':''}`);
+   if(!chg.length)line('No changes made.');pages.push(cv)}
+  return pdfFromPages(pages);
+}
+function pdfFromPages(pages){
+  const enc=new TextEncoder();const chunks=[];let len=0;const offs=[];const push=b=>{const u=typeof b==='string'?enc.encode(b):b;chunks.push(u);len+=u.length};
+  const imgs=[];for(const cv of pages){const url=cv.toDataURL('image/jpeg',0.9);const bin=atob(url.split(',')[1]);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);imgs.push(u)}
+  const nP=pages.length;const obj=(i,body)=>{offs[i]=len;push(`${i} 0 obj\n`);body();push('\nendobj\n')};
+  push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  obj(1,()=>push('<< /Type /Catalog /Pages 2 0 R >>'));
+  obj(2,()=>push(`<< /Type /Pages /Count ${nP} /Kids [${pages.map((_,i)=>`${3+i*3} 0 R`).join(' ')}] >>`));
+  pages.forEach((cv,i)=>{const pi=3+i*3,ci=pi+1,ii=pi+2;const cs=`q 792 0 0 612 0 0 cm /Im${i} Do Q`;
+    obj(pi,()=>push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] /Resources << /XObject << /Im${i} ${ii} 0 R >> >> /Contents ${ci} 0 R >>`));
+    obj(ci,()=>push(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`));
+    obj(ii,()=>{push(`<< /Type /XObject /Subtype /Image /Width ${cv.width} /Height ${cv.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgs[i].length} >>\nstream\n`);push(imgs[i]);push('\nendstream')})});
+  const xref=len;const n=3+nP*3;let x=`xref\n0 ${n}\n0000000000 65535 f \n`;for(let i=1;i<n;i++)x+=String(offs[i]).padStart(10,'0')+' 00000 n \n';push(x+`trailer\n<< /Size ${n} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  return new Blob(chunks,{type:'application/pdf'});
+}
+/* Schedule Summary: one landscape page, timeline and loading on the same dates */
+function drawGanttCanvas(x,X0,Y0,Wt,Ht,LW,fs,p){
+  const rows=S.rows;const head=fs*2;const rh=(Ht-head)/rows.length;const span=TL.b-TL.a+1;const X=d=>X0+LW+(d-TL.a)/span*(Wt-LW);
+  x.save();x.fillStyle=p.shade;for(const[a,b]of shutRuns(TL.a,TL.b))x.fillRect(X(a),Y0,X(b+3)-X(a),Ht);
+  x.font=`${fs}px Lato, sans-serif`;x.textBaseline='middle';
+  {const s0=new Date(TL.a*DAY);let y=s0.getUTCFullYear(),m=s0.getUTCMonth()+1;for(;;){if(m>11){m=0;y++}const d=Date.UTC(y,m,1)/DAY;if(d>TL.b)break;x.strokeStyle=p.line;x.lineWidth=1;x.beginPath();x.moveTo(X(d),Y0);x.lineTo(X(d),Y0+Ht);x.stroke();x.fillStyle=p.ink2;x.textAlign='left';x.fillText(new Date(d*DAY).toLocaleDateString('en-CA',{timeZone:'UTC',month:'short'})+(m===0?" '"+String(y).slice(2):''),X(d)+4,Y0+head/2);m++}}
+  x.strokeStyle=p.ink;x.lineWidth=2;x.beginPath();x.moveTo(X0,Y0+head);x.lineTo(X0+Wt,Y0+head);x.stroke();
+  x.fillStyle=p.ink2;x.font=`bold ${fs*0.9}px Lato, sans-serif`;x.textAlign='left';x.fillText('ROW · INSTALL WINDOW',X0+6,Y0+head/2);
+  const fit=(t,w)=>{if(x.measureText(t).width<=w)return t;while(t.length>1&&x.measureText(t+'…').width>w)t=t.slice(0,-1);return t+'…'};
+  rows.forEach((r,i)=>{const c=C.rows[r.id];const y=Y0+head+i*rh;const dl=c.ef-r.bFinish;
+    if(i%2){x.fillStyle='rgba(0,0,0,0.025)';x.fillRect(X0,y,Wt,rh)}
+    const dates=c.done?'done':`${fmt(c.es)}–${fmt(c.ef)}`;x.font=`${fs*0.85}px Lato, sans-serif`;const dw=x.measureText(dates).width;
+    x.fillStyle=p.ink2;x.textAlign='right';x.fillText(dates,X0+LW-8,y+rh/2);
+    x.font=`bold ${fs*0.9}px Lato, sans-serif`;x.fillStyle=c.done?p.ink2:p.ink;x.textAlign='left';x.fillText(fit(r.name,LW-dw-22),X0+6,y+rh/2);
+    x.fillStyle=p.base;x.globalAlpha=0.6;x.fillRect(X(r.bStart),y+rh*0.72,X(r.bFinish+1)-X(r.bStart),Math.max(2,rh*0.14));x.globalAlpha=1;
+    const bx=X(c.es),bw=Math.max(3,X(c.ef+1)-X(c.es)),by=y+rh*0.14,bh=rh*0.5;
+    x.fillStyle=c.done?'#ffffff':'#eef3fc';x.fillRect(bx,by,bw,bh);x.strokeStyle=c.done?'#8a8a8a':c.pushed?p.warn:'#1f5fd1';x.lineWidth=Math.max(1.5,fs*0.12);x.strokeRect(bx,by,bw,bh);
+    if(!c.done&&dl){x.font=`bold ${fs*0.8}px Lato, sans-serif`;x.fillStyle=dl>0?p.late:'#1b7f4b';x.textAlign='left';x.fillText(`${dl>0?'+':'−'}${Math.abs(dl)}d`,bx+bw+5,by+bh/2)}});
+  x.strokeStyle=p.line;x.lineWidth=1;x.beginPath();x.moveTo(X0+LW,Y0);x.lineTo(X0+LW,Y0+Ht);x.stroke();
+  Object.values(S.milestones).forEach((m,i)=>{x.setLineDash([fs*0.4,fs*0.3]);x.strokeStyle=p.warn;x.lineWidth=2;x.beginPath();x.moveTo(X(m.date),Y0+head);x.lineTo(X(m.date),Y0+Ht);x.stroke();x.setLineDash([]);x.fillStyle=p.warn;const mxp=X(m.date),myp=Y0+head;x.beginPath();x.moveTo(mxp,myp-fs*0.45);x.lineTo(mxp+fs*0.45,myp);x.lineTo(mxp,myp+fs*0.45);x.lineTo(mxp-fs*0.45,myp);x.closePath();x.fill();x.font=`bold ${fs*0.8}px Lato, sans-serif`;x.textAlign='left';x.fillText(m.id==='NAV'?'Milestone: Nav consoles':'Milestone: '+m.id,mxp+fs*0.6,myp+fs*0.9+i*fs)});
+  if(TODAY>=TL.a&&TODAY<=TL.b){x.strokeStyle=p.late;x.lineWidth=2;x.beginPath();x.moveTo(X(TODAY),Y0+head);x.lineTo(X(TODAY),Y0+Ht);x.stroke()}
+  x.restore();
+}
+async function buildSummaryPdf(){
+  const W=3300,H=2550,M=110;const p=pal('light');const cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);
+  x.fillStyle='#111';x.font='600 64px "Source Serif 4", Georgia, serif';x.textBaseline='alphabetic';x.textAlign='left';x.fillText('Install Path · Schedule Summary',M,140);
+  x.font='34px Lato, sans-serif';x.fillStyle='#555';x.fillText(`${stamp()} · ${BUILD} · compared with the Baseline (the schedule as first issued) · ${S.settings.techs} technicians × ${S.settings.hpd} h/day`,M,195);
+  const NAV=S.milestones.NAV,FD=S.milestones.FDCR;const dd2=(a,b,u)=>{if(a==null||b==null)return'';const d=a-b;return Math.abs(d)<0.5?'same as Baseline':`${d>0?'+':'−'}${u==='d'?Math.abs(Math.round(d))+' days':nf(Math.abs(d))+' h'} vs Baseline`};
+  const k=[['Last install',fmtY(C.finish),dd2(C.finish,BC.finish,'d')],['All but FDCR',fmtY(C.finishEx),dd2(C.finishEx,BC.finishEx,'d')],['Peak week',nf(C.stats.peak)+' h',dd2(C.stats.peak,BC.stats.peak,'h')],['Total overtime',nf(C.stats.ot)+' h',dd2(C.stats.ot,BC.stats.ot,'h')],['Install hours left',nf(C.remHours)+' h',`${C.remTags} tags`]];
+  const ms=[['Nav consoles delivered',NAV],['FDCR delivered',FD]];const gap=24,mgap=70,bh=190,by=262;const kw=(W-2*M-6*gap-mgap)/7;
+  const col=(t)=>/^\+/.test(t)?p.late:/^−/.test(t)?'#1b7f4b':'#555';
+  k.forEach((t,i)=>{const bx=M+i*(kw+gap);x.strokeStyle='#111';x.lineWidth=4;x.strokeRect(bx,by,kw,bh);x.fillStyle='#555';x.font='26px Lato, sans-serif';x.fillText(t[0].toUpperCase(),bx+22,by+50);x.fillStyle='#111';x.font='bold 50px Lato, sans-serif';x.fillText(t[1],bx+22,by+115);x.fillStyle=col(t[2]);x.font='26px Lato, sans-serif';x.fillText(t[2],bx+22,by+160)});
+  const mx0=M+5*(kw+gap)-gap+mgap;
+  x.fillStyle=p.warn;x.font='bold 28px Lato, sans-serif';x.fillText('◆ MILESTONES',mx0,by-16);
+  ms.forEach(([lab,m],i)=>{const bx=mx0+i*(kw+gap);x.strokeStyle=p.warn;x.lineWidth=5;x.strokeRect(bx,by,kw,bh);
+    const dx=bx+34,dy=by+40;x.fillStyle=p.warn;x.beginPath();x.moveTo(dx,dy-14);x.lineTo(dx+14,dy);x.lineTo(dx,dy+14);x.lineTo(dx-14,dy);x.closePath();x.fill();
+    x.font='bold 24px Lato, sans-serif';x.fillText('MILESTONE',bx+58,by+49);x.fillStyle='#555';x.font='24px Lato, sans-serif';x.fillText(lab,bx+22,by+84);
+    x.fillStyle='#111';x.font='bold 46px Lato, sans-serif';x.fillText(fmtY(m?.date),bx+22,by+138);const t=dd2(m?.date,m?.base,'d');x.fillStyle=col(t);x.font='26px Lato, sans-serif';x.fillText(t,bx+22,by+176)});
+  const LW=760,gy=480,gh=1280,fs=26;drawGanttCanvas(x,M,gy,W-2*M,gh,LW,fs,p);
+  x.strokeStyle='#111';x.lineWidth=3;x.strokeRect(M,gy,W-2*M,gh);
+  const lc=document.createElement('canvas');Object.defineProperty(lc,'clientWidth',{value:W-2*M});drawLoad(lc,{theme:'light',W:W-2*M,H:620,fs:26,plotL:LW,plotR:0});
+  x.drawImage(lc,M,gy+gh+10,W-2*M,620);
+  x.fillStyle='#111';x.font='bold 28px Lato, sans-serif';x.fillText('Weekly loading vs capacity',M+12,gy+gh+60);
+  x.font='24px Lato, sans-serif';x.fillStyle='#555';['grey = hours needed','red = overtime','black line = technician capacity','dashed = Baseline'].forEach((t,i)=>x.fillText(t,M+12,gy+gh+100+i*32));
+  x.fillText('Timeline: blue bar = current window (orange = held by a delivery or receipt), grey line = Baseline, +/−d = finish vs Baseline, ◆ orange dashed line = milestone. Loading includes 0.25 h paperwork per request/receipt step.',M,H-60);
+  return pdfFromPages([cv]);
+}
+let DIRTY=false,LASTSAVE='';
+function setDirty(v){DIRTY=v;const d=document.getElementById('dirty');if(d)d.hidden=!v}
+async function saveAs(){
+  if(!S)return;const name=`Install Path - ${fileStamp()}.xlsx`;let blob;
+  try{blob=buildExcel()}catch(e){console.error(e);return toast('Could not build the file: '+e.message)}
+  if(!DLAPI&&window.showSaveFilePicker&&window.self===window.top){
+    try{const h=await window.showSaveFilePicker({suggestedName:name,types:[{description:'Excel workbook',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});const w=await h.createWritable();await w.write(blob);await w.close();markSaved(h.name);return}
+    catch(e){if(e&&e.name==='AbortError')return;console.warn(e)}}
+  const ok=await dlBlob(blob,name);if(ok!==false)markSaved(name);
+}
+function markSaved(name){LASTSAVE=name;setDirty(false);save();toast('Saved as '+name)}
+async function doDownload(){const sm=document.getElementById('dlS').checked,p=document.getElementById('dlP').checked;if(!sm&&!p)return toast('Pick Schedule Summary, Full report or both');
+  document.getElementById('mDl').classList.remove('on');const base='Install Path',st=fileStamp();
+  try{await document.fonts.ready;let ok=true;if(sm)ok=(await dlBlob(await buildSummaryPdf(),`${base} - Schedule Summary - ${st}.pdf`))!==false&&ok;if(p)ok=(await dlBlob(await buildPdf(),`${base} - Full report - ${st}.pdf`))!==false&&ok;if(ok)toast('Downloaded')}catch(e){console.error(e);toast('Download failed: '+e.message)}}
+
+/* ============ wiring ============ */
+function theme(t){if(t)document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('installpath.theme',t)}catch(e){}if(S)renderCharts()}
+(function init(){
+  document.getElementById('rev').textContent=BUILD;document.getElementById('rev0').textContent=BUILD;
+  try{const t=localStorage.getItem('installpath.theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}
+  const file=document.getElementById('file');
+  document.getElementById('pick').onclick=()=>file.click();file.onchange=()=>{if(file.files[0])loadFile(file.files[0]);file.value=''};
+  const drop=document.getElementById('drop');['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)loadFile(f)});
+  try{const s=JSON.parse(localStorage.getItem('installpath.session')||'null');if(s&&s.LOADED){document.getElementById('resume').style.display='block';document.getElementById('resumeNote').textContent=`${s.FILENAME} · saved ${s.saved} on this computer`;
+    document.getElementById('resumeBtn').onclick=()=>{start(s.LOADED,s.FILENAME,s.S);setDirty(!!s.dirty)}}}catch(e){}
+  document.getElementById('theme').onclick=()=>{const cur=document.documentElement.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');theme(cur==='dark'?'light':'dark')};
+  document.getElementById('undo').onclick=undo;
+  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();undo()}if(e.key==='Escape')document.querySelectorAll('.modal.on').forEach(m=>m.classList.remove('on'))});
+  document.getElementById('reset').onclick=()=>document.getElementById('mReset').classList.add('on');
+  document.getElementById('dl').onclick=()=>document.getElementById('mDl').classList.add('on');
+  document.getElementById('load').onclick=()=>{document.getElementById('ldMsg').textContent=DIRTY?'You have changes that are not saved. Opening another file replaces them. Save as first to keep them.':'Opening a file replaces what is on screen.';document.getElementById('ldSave').hidden=!DIRTY;document.getElementById('mLoad').classList.add('on')};
+  document.getElementById('ldGo').onclick=()=>{document.getElementById('mLoad').classList.remove('on');file.click()};
+  document.getElementById('ldSave').onclick=async()=>{document.getElementById('mLoad').classList.remove('on');await saveAs()};
+  document.getElementById('saveas').onclick=saveAs;
+  window.addEventListener('beforeunload',e=>{if(DIRTY){e.preventDefault();e.returnValue=''}});
+  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&S){e.preventDefault();saveAs()}});
+  document.getElementById('dlGo').onclick=doDownload;
+  document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-close]'))m.classList.remove('on')}));
+  document.getElementById('rsPlan').onclick=()=>{document.getElementById('mReset').classList.remove('on');commit(()=>{for(const r of S.rows){r.start=r.bStart;r.finish=r.bFinish}for(const k in S.parts)S.parts[k].hours=S.parts[k].bHours;for(const k in S.milestones)S.milestones[k].date=S.milestones[k].base;S.settings.techs=S.settings.baseTechs;S.settings.hpd=S.settings.baseHpd;for(const t of S.tags){t.fReq=t.fRecv=t.fRev=null}log('Reset','Plan','All dates, hours, deliveries and technicians','current','Baseline','status updates kept')});toast('Plan reset to the Baseline')};
+  document.getElementById('rsAll').onclick=()=>{document.getElementById('mReset').classList.remove('on');commit(()=>{const L=JSON.parse(JSON.stringify(LOADED));Object.assign(S,{settings:L.settings,milestones:L.milestones,rows:L.rows,tags:L.tags,parts:L.parts,changes:L.changes})});toast('Back to the file as loaded')};
+  document.getElementById('techM').onclick=()=>{if(S.settings.techs<=1)return;commit(()=>{log('Scenario','Technicians','Count',S.settings.techs,S.settings.techs-1);S.settings.techs--})};
+  document.getElementById('techP').onclick=()=>commit(()=>{log('Scenario','Technicians','Count',S.settings.techs,S.settings.techs+1);S.settings.techs++});
+  document.getElementById('hpd').onchange=e=>{const v=+e.target.value;if(!(v>0&&v<=24))return refresh();commit(()=>{log('Scenario','Hours per day','Hours',S.settings.hpd,v);S.settings.hpd=v})};
+  for(const id of['NAV','FDCR'])document.getElementById('ms'+id).onchange=e=>{const d=isoToDn(e.target.value);const m=S.milestones[id];if(d==null||!m)return refresh();commit(()=>{log('Delivery',m.name,'Date',dnToIso(m.date),dnToIso(d));m.date=d})};
+  document.getElementById('tabs').onclick=e=>{const b=e.target.closest('.tab');if(!b)return;VIEW=b.dataset.v;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+VIEW));if(VIEW==='sched')renderCharts()};
+  const grid=document.getElementById('grid');
+  grid.addEventListener('change',onGridChange);
+  grid.addEventListener('click',e=>{const ex=e.target.closest('.exp');if(ex){const id=ex.closest('tr').dataset.id;OPEN.has(id)?OPEN.delete(id):OPEN.add(id);renderGrid();return}
+    const u=e.target.closest('.iUpd');if(u){const tg=u.closest('tr').dataset.tag;const t=S.tags.find(x=>x.tag===tg);const c=C.tags[tg]||{};
+      const k=t.status==='Installed'?'Engineer Review':t.recv!=null?'Install':t.req!=null||c.reqK==='none'?'Receipt':'Request';
+      openUpdate({kind:k,date:k==='Request'?c.req:k==='Receipt'?c.recv:k==='Install'?c.finish:c.review,tags:[tg],row:t.row,label:tg,sub:t.name},true)}});
+  const gantt=document.getElementById('gantt');gantt.addEventListener('pointerdown',onDown);
+  gantt.addEventListener('click',e=>{const l=e.target.closest('.grow2 .glab');if(!l)return;const id=l.parentElement.dataset.id;OPEN.add(id);document.getElementById('q').value='';renderGantt();renderGrid();const tr=document.querySelector(`#grid tr.grow[data-id="${id}"]`);if(tr){tr.scrollIntoView({behavior:'smooth',block:'center'});tr.classList.add('flash');setTimeout(()=>tr.classList.remove('flash'),1600)}});window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
+  document.getElementById('partsT').addEventListener('change',e=>{if(e.target.classList.contains('iPart'))setPart(e.target.dataset.part,e.target.value)});
+  document.getElementById('q').addEventListener('input',()=>{renderGantt();renderGrid()});document.getElementById('pq').addEventListener('input',renderParts);
+  const at=document.getElementById('aheadTo');at.value=dnToIso(TODAY+14);at.min=dnToIso(TODAY);at.onchange=()=>{renderLists();renderTop()};
+  document.querySelector('#v-ahead .toolbar').addEventListener('click',e=>{const b=e.target.closest('[data-ah]');if(!b)return;const v=b.dataset.ah;let d;if(v==='eom'){const t=new Date(TODAY*DAY);d=Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)/DAY}else d=TODAY+(+v);at.value=dnToIso(d);renderLists();renderTop()});
+  for(const id of['aheadList','lateList'])document.getElementById(id).addEventListener('click',e=>{const b=e.target.closest('[data-item]');if(!b)return;const k=b.dataset.item;openUpdate(LISTS[k[0]][+k.slice(1)],false)});
+  document.getElementById('updCard').addEventListener('click',e=>{if(e.target.id==='uSave')saveUpdate()});
+  hookTips();window.addEventListener('resize',()=>{if(S)renderCharts()});
+  document.fonts&&document.fonts.ready.then(()=>{if(S)renderCharts()});
+})();
+</script>
+</body>
+</html>
