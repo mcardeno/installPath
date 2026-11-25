@@ -131,11 +131,14 @@ tr.detail>td{background:var(--faint);padding:10px 14px}
 .note{font-size:14px;color:var(--ink2)}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
 .msf{color:var(--warn);font-weight:700} .dia{font-size:18px;line-height:1}
-.dirty{color:var(--warn);font-weight:700;font-size:14px}
+.dirty{color:var(--warn);font-weight:700}
+header .plan{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .btn{flex:0 0 auto}
 .sect{margin:22px 0 8px;font-size:18px}
 .gwrap{overflow-x:auto} .ginner{min-width:0}
 .gantt{--lw:320px;border:2px solid var(--ink);border-bottom:none;border-radius:12px 12px 0 0;overflow:hidden}
 .gbody{max-height:46vh;overflow-y:auto;scrollbar-gutter:stable}
+#v-sched .toolbar{scroll-margin-top:130px}
 .ghead,.grow2{display:flex}
 .ghead{position:sticky;top:0;z-index:3;background:var(--bg);border-bottom:2px solid var(--ink);height:36px}
 .ghead .glab{font-size:13px;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;cursor:default}
@@ -191,9 +194,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   <div class="spacer"></div>
   <button class="btn" id="undo" title="Undo the last change">Undo</button>
   <button class="btn" id="reset">Reset…</button>
-  <span class="dirty" id="dirty" hidden>● Unsaved changes</span>
   <button class="btn" id="load">Open…</button>
-  <button class="btn" id="saveas">Save as…</button>
+  <button class="btn" id="saveas">Save as…<span class="dirty" id="dirty" hidden title="Unsaved changes"> ●</span></button>
   <button class="btn" id="dl">Download…</button>
   <button class="btn" id="msp" title="Excel file for the Microsoft Project import wizard">Microsoft Project Export</button>
   <button class="btn icon" id="theme" title="Day / night">☀︎ / ☾</button>
@@ -215,10 +217,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 </div>
 <main>
   <section class="view on" id="v-sched">
-    <div class="toolbar"><input type="text" id="q" placeholder="Filter rows (SWBS, tag, name)" style="min-width:16em"><label class="choice"><input type="checkbox" id="showOrig"> Show original plan for installed work</label><span class="note">Drag a bar to move it, drag its right end to stretch it. Tap a row name to edit its dates and tags. Blue = editable.</span></div>
+    <div class="toolbar"><input type="text" id="q" placeholder="Filter rows (SWBS, tag, name)" style="min-width:16em"><button class="btn" id="sortStart" title="Put the rows in order of start date (you can undo it)">Sort by start date</button><label class="choice"><input type="checkbox" id="showOrig"> Show original plan for installed work</label><span class="note">Drag a bar to move it, drag its right end to stretch it. Tap a row name to edit its dates and tags. Blue = editable.</span></div>
     <div class="gwrap"><div class="ginner">
       <div class="gantt" id="gantt"></div>
-      <div class="chart loadbox"><h3>Weekly loading vs technician capacity <span class="note">same dates as the timeline above</span></h3><div class="legend"><span><i class="sw box" style="background:var(--bar)"></i>Hours needed</span><span><i class="sw box" style="background:var(--ot)"></i>Overtime</span><span><i class="sw" style="border-color:var(--ink)"></i>Capacity</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cLoad" height="240"></canvas><div class="tip"></div></div>
+      <div class="chart loadbox"><h3>Weekly loading vs technician capacity <span class="note">same dates as the timeline above</span></h3><div class="legend"><span><i class="sw box" style="background:var(--bar)"></i>Hours needed</span><span><i class="sw box" style="background:var(--ot)"></i>Overtime</span><span><i class="sw" style="border-color:var(--ink)"></i>Capacity</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cLoad" height="210"></canvas><div class="tip"></div></div>
     </div></div>
     <div class="curves">
       <div class="chart"><h3>S-curve by install hours</h3><div class="legend"><span><i class="sw" style="border-color:var(--actual)"></i>Actual</span><span><i class="sw" style="border-color:var(--forecast)"></i>Forecast</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cHrs" height="175"></canvas><div class="tip"></div></div>
@@ -276,6 +278,13 @@ const isWork=d=>{const w=wkday(d);return w>0&&w<6&&!HOL.has(d)};
 const nextWork=d=>{while(!isWork(d))d++;return d};
 const prevWork=d=>{while(!isWork(d))d--;return d};
 function addWork(s,n){s=nextWork(s);let c=1;while(c<Math.max(1,n)){s++;if(isWork(s))c++}return s}
+function subWork(f,n){f=prevWork(f);let c=1;while(c<Math.max(1,n)){f--;if(isWork(f))c++}return f}
+// a shutdown = a run of 3+ non-working weekdays (single holidays don't count)
+function shutRunOf(d){if(isWork(d))return null;let a=d,b=d;while(!isWork(a-1))a--;while(!isWork(b+1))b++;let n=0;for(let x=a;x<=b;x++){const w=wkday(x);if(w>0&&w<6)n++}return n>=3?[a,b]:null}
+// where a moved bar lands: a bar dropped wholly inside a shutdown bounces to the nearer side; a start inside a shutdown moves to the first working day after it
+function placeMove(raw,span,dur,dir){const run=shutRunOf(raw);if(!run)return nextWork(raw);const end=raw+span;
+  if(end<=run[1]){const mid=(raw+end)/2,rmid=(run[0]+run[1])/2;if(mid<rmid||(mid===rmid&&dir<0)){const f=prevWork(run[0]-1);return subWork(f,dur)}return nextWork(run[1]+1)}
+  return nextWork(raw)}
 function wdBetween(a,b){if(b<a)return 0;let c=0;for(let d=a;d<=b;d++)if(isWork(d))c++;return c}
 const monday=d=>d-((wkday(d)+6)%7);
 function realToday(){const q=new URLSearchParams(location.search).get('today');if(q&&isoToDn(q)!=null)return isoToDn(q);const n=new Date();return Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())/DAY}
@@ -565,7 +574,7 @@ function renderGantt(){
   for(const r of S.rows){const c=C.rows[r.id];if(!rowMatches(r,q,tagsBy[r.id]||[]))continue;const done=c.done;const dl=c.ef-r.bFinish;
     h+=`<div class="grow2${done?' done':''}" data-id="${r.id}"><div class="glab" title="${esc(r.name)} · ${fmt(c.es)} – ${fmt(c.ef)}${c.pushed?' · held by '+esc(c.why):''}"><span class="gn">${esc(r.name)}</span><span class="gd">${done?'done':fmt(c.es)+'–'+fmt(c.ef)}${!done&&dl?` <span class="delta ${dl>0?'up':'dn'}">${dl>0?'+':'−'}${Math.abs(dl)}d</span>`:''}</span></div>
       <div class="gtrack track">${deco}<div class="bbar" style="left:${pct(r.bStart)};width:calc(${pct(r.bFinish+1)} - ${pct(r.bStart)})"></div><div class="gbar${c.pushed?' pushed':''}${done?' donebar':''}" style="left:${pct(c.es)};width:calc(${pct(c.ef+1)} - ${pct(c.es)})" title="${esc(r.name)}: ${fmt(c.es)} – ${fmt(c.ef)}">${done?'':'<div class="h"></div>'}</div></div></div>`}
-  const g=document.getElementById('gantt');const old=document.getElementById('gbody');const st=old?old.scrollTop:0;g.innerHTML=h+'</div>';document.getElementById('gbody').scrollTop=st;
+  const g=document.getElementById('gantt');const old=document.getElementById('gbody');const st=old?old.scrollTop:0;g.innerHTML=h+'</div>';document.getElementById('gbody').scrollTop=st;fitGantt();
 }
 const kindTxt=k=>k==='actual'?'actual':k==='forecast'?'reforecast':k==='milestone'?'delivery':k==='none'?'':'planned';
 function detailHtml(r,ts){
@@ -681,6 +690,9 @@ function drawLoad(cv,o){
   ctx.restore();
   CH[cv.id]={A,hover:d=>{const w=weeks.find(w=>d>=w.m&&d<w.m+7);if(!w)return null;return`<b>Week of ${fmtY(w.m)}</b><br>Needed ${nf(w.h)} h · capacity ${nf(w.cap)} h<br>${w.h>w.cap?'<span style="color:var(--ot)">Overtime '+nf(w.h-w.cap)+' h</span><br>':''}Baseline ${nf(w.b)} h`}};
 }
+function fitGantt(){const gb=document.getElementById('gbody');if(!gb)return;if(window.innerWidth<700){gb.style.maxHeight='';return}
+  const kp=document.querySelector('.kpis');const k=getComputedStyle(kp).position==='sticky'?kp.offsetHeight:0;const tb=document.querySelector('#v-sched .toolbar').offsetHeight+16;const lbx=document.querySelector('.loadbox');const head=lbx.querySelector('h3').offsetHeight+lbx.querySelector('.legend').offsetHeight;const lb=head+(+document.getElementById('cLoad').getAttribute('height'))+20;
+  gb.style.maxHeight=Math.max(120,window.innerHeight-k-tb-lb-44)+'px'}
 function ganttGeom(){const gb=document.getElementById('gbody');const lab=gb&&gb.querySelector('.grow2 .glab, .ghead .glab');if(!gb||!lab)return{};return{plotL:lab.getBoundingClientRect().width,plotR:gb.offsetWidth-gb.clientWidth}}
 function renderCharts(){if(VIEW!=='sched')return;drawLoad(document.getElementById('cLoad'),ganttGeom());drawS(document.getElementById('cHrs'),'hrs');drawS(document.getElementById('cTags'),'tags')}
 function hookTips(){for(const id of['cLoad','cHrs','cTags']){const cv=document.getElementById(id);const tip=cv.nextElementSibling;
@@ -716,7 +728,7 @@ function onDown(e){const bar=e.target.closest('.gbar');if(!bar||bar.classList.co
   const track=bar.parentElement;const w=track.getBoundingClientRect().width;DRAG={r,c,bar,mode:e.target.classList.contains('h')?'end':'move',x:e.clientX,ppd:w/(TL.b-TL.a+1),days:0,orig:{start:r.start,finish:r.finish}};
   bar.setPointerCapture(e.pointerId);bar.classList.add('drag');e.preventDefault()}
 function onMove(e){if(!DRAG)return;const days=Math.round((e.clientX-DRAG.x)/DRAG.ppd);if(days===DRAG.days)return;DRAG.days=days;
-  const {r,c}=DRAG;if(DRAG.mode==='move'){const s=nextWork(c.es+days);r.start=s;r.finish=addWork(s,c.dur)}else{r.start=c.es;r.finish=prevWork(Math.max(c.es,c.ef+days))}
+  const {r,c}=DRAG;if(DRAG.mode==='move'){const s=placeMove(c.es+days,c.ef-c.es,c.dur,days);r.start=s;r.finish=addWork(s,c.dur)}else{r.start=c.es;r.finish=prevWork(Math.max(c.es,c.ef+days))}
   cancelAnimationFrame(onMove.h);onMove.h=requestAnimationFrame(()=>{const n=compute(S);n.stats=weeklyStats(S,n);n.items=items(S,n);const keep=C;C=n;
     const nc=C.rows[r.id];DRAG.bar.style.left=pct(nc.es);DRAG.bar.style.width=`calc(${pct(nc.ef+1)} - ${pct(nc.es)})`;DRAG.bar.title=`${fmt(nc.es)} – ${fmt(nc.ef)}`;
     const gd=DRAG.bar.closest('.grow2')?.querySelector('.gd');if(gd)gd.textContent=fmt(nc.es)+'–'+fmt(nc.ef);const tr=document.querySelector(`#grid tr.grow[data-id="${r.id}"]`);if(tr){tr.querySelector('.iStart').value=dnToIso(nc.es);tr.querySelector('.iFin').value=dnToIso(nc.ef);tr.querySelector('.iDur').value=nc.dur}
@@ -764,7 +776,7 @@ function saveUpdate(){
       if(com)t.comment=com}});
   }else if(act==='fc'){const d=isoToDn(card.querySelector('#uFc').value);if(d==null)return err('Enter the new forecast date.');
     if(kind==='Install'){const r=rowById(tags[0].row);if(!r)return err('This tag has no schedule row.');const c=C.rows[r.id];const how=card.querySelector('input[name=uMv]:checked').value;
-      let s=c.es,f=d;if(how==='shift'){f=prevWork(d);s=c.es+(f-c.ef);s=nextWork(s);f=addWork(s,c.dur)}else if(d<c.es)return err('Finish can’t be before the start ('+fmt(c.es)+').');
+      let s=c.es,f=d;if(how==='shift'){const span=c.ef-c.es;s=placeMove(d-span,span,c.dur,d-c.ef);f=addWork(s,c.dur)}else if(d<c.es)return err('Finish can’t be before the start ('+fmt(c.es)+').');
       document.getElementById('mUpd').classList.remove('on');setRow(r,s,f,'Reforecast install');if(com){S.changes[S.changes.length-1].comment=com;r.comment=com;refresh(true)}return}
     commit(()=>{for(const t of tags){const c=C.tags[t.tag]||{};
       if(kind==='Request'){if(t.req!=null)continue;log('Reforecast',t.tag,'Request',dnToIso(c.req),dnToIso(d),com);t.fReq=d}
@@ -975,6 +987,10 @@ function theme(t){if(t)document.documentElement.setAttribute('data-theme',t);try
   document.getElementById('ldSave').onclick=async()=>{document.getElementById('mLoad').classList.remove('on');await saveAs()};
   document.getElementById('saveas').onclick=saveAs;
   document.getElementById('msp').onclick=doProjectExport;
+  document.getElementById('sortStart').onclick=()=>{if(!S)return;const key=r=>{const c=C.rows[r.id];return[c.es,c.ef,r.name]};
+    const sorted=[...S.rows].sort((a,b)=>{const x=key(a),y=key(b);return x[0]-y[0]||x[1]-y[1]||x[2].localeCompare(y[2])});
+    if(sorted.every((r,i)=>r===S.rows[i]))return toast('Already in start-date order');
+    commit(()=>{S.rows=sorted;log('Sort','All rows','Order','previous order','by start date')});toast('Rows sorted by start date')};
   window.addEventListener('beforeunload',e=>{if(DIRTY){e.preventDefault();e.returnValue=''}});
   document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'&&S){e.preventDefault();saveAs()}});
   document.getElementById('dlGo').onclick=doDownload;
@@ -1002,7 +1018,7 @@ function theme(t){if(t)document.documentElement.setAttribute('data-theme',t);try
   document.querySelector('#v-ahead .toolbar').addEventListener('click',e=>{const b=e.target.closest('[data-ah]');if(!b)return;const v=b.dataset.ah;let d;if(v==='eom'){const t=new Date(TODAY*DAY);d=Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)/DAY}else d=TODAY+(+v);at.value=dnToIso(d);renderLists();renderTop()});
   for(const id of['aheadList','lateList'])document.getElementById(id).addEventListener('click',e=>{const b=e.target.closest('[data-item]');if(!b)return;const k=b.dataset.item;openUpdate(LISTS[k[0]][+k.slice(1)],false)});
   document.getElementById('updCard').addEventListener('click',e=>{if(e.target.id==='uSave')saveUpdate()});
-  hookTips();window.addEventListener('resize',()=>{if(S)renderCharts()});
+  hookTips();window.addEventListener('resize',()=>{if(S){fitGantt();renderCharts()}});
   document.fonts&&document.fonts.ready.then(()=>{if(S)renderCharts()});
 })();
 </script>
