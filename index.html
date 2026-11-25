@@ -217,7 +217,7 @@ header .btn{flex:0 0 auto}
 </div>
 <main>
   <section class="view on" id="v-sched">
-    <div class="toolbar"><input type="text" id="q" placeholder="Filter rows (SWBS, tag, name)" style="min-width:16em"><button class="btn" id="sortStart" title="Put the rows in order of start date (you can undo it)">Sort by start date</button><label class="choice"><input type="checkbox" id="showOrig"> Show original plan for installed work</label><span class="note">Drag a bar to move it, drag its right end to stretch it. Tap a row name to edit its dates and tags. Blue = editable.</span></div>
+    <div class="toolbar"><input type="text" id="q" placeholder="Filter rows (SWBS, tag, name)" style="min-width:16em"><button class="btn" id="sortStart" title="Put the rows in order of start date (you can undo it)">Sort by start date</button><button class="btn" id="sortSwbs" title="Put the rows in SWBS number order; console and rack rows go by their tag number (you can undo it)">Sort by SWBS number</button><label class="choice"><input type="checkbox" id="showOrig"> Show original plan for installed work</label><span class="note">Drag a bar to move it, drag its right end to stretch it. Tap a row name to edit its dates and tags. Blue = editable.</span></div>
     <div class="gwrap"><div class="ginner">
       <div class="gantt" id="gantt"></div>
       <div class="chart loadbox"><h3>Weekly loading vs technician capacity <span class="note">same dates as the timeline above</span></h3><div class="legend"><span><i class="sw box" style="background:var(--bar)"></i>Hours needed</span><span><i class="sw box" style="background:var(--ot)"></i>Overtime</span><span><i class="sw" style="border-color:var(--ink)"></i>Capacity</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span></div><canvas id="cLoad" height="210"></canvas><div class="tip"></div></div>
@@ -636,7 +636,7 @@ if(mode==='hrs'){for(const[d,h]of R.load)plan.set(d,(plan.get(d)||0)+h)}else{for
   return out;
 }
 function niceMax(v){if(v<=0)return 1;const e=Math.pow(10,Math.floor(Math.log10(v)));const m=v/e;for(const k of[1,1.5,2,2.5,3,4,5,6,7.5,8,10])if(m<=k+1e-9)return k*e;return 10*e}
-function setupCanvas(cv,W,H){const dpr=window.devicePixelRatio||1;if(W==null){W=cv.clientWidth||600;H=+cv.getAttribute('height');if(window.innerWidth<700)H=Math.min(H,200)}cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,W,H}}
+function setupCanvas(cv,W,H){const dpr=window.devicePixelRatio||1;if(W==null){W=cv.clientWidth||600;if(!cv.dataset.h)cv.dataset.h=cv.getAttribute('height');H=+cv.dataset.h;if(window.innerWidth<700)H=Math.min(H,200)}cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+'px';const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,W,H}}
 function axes(ctx,W,H,P,x0,x1,ymax,p,fs,yfmt){
   const L=P.l,T=P.t,Wd=W-P.l-P.r,Hd=H-P.t-P.b;ctx.font=`${fs}px Lato, sans-serif`;ctx.fillStyle=p.ink2;ctx.strokeStyle=p.line;ctx.lineWidth=1;ctx.textAlign='right';ctx.textBaseline='middle';
   for(let i=0;i<=4;i++){const v=ymax*i/4,y=T+Hd-Hd*i/4;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(L+Wd,y);ctx.stroke();ctx.fillText(yfmt(v),L-6,y)}
@@ -691,7 +691,7 @@ function drawLoad(cv,o){
   CH[cv.id]={A,hover:d=>{const w=weeks.find(w=>d>=w.m&&d<w.m+7);if(!w)return null;return`<b>Week of ${fmtY(w.m)}</b><br>Needed ${nf(w.h)} h · capacity ${nf(w.cap)} h<br>${w.h>w.cap?'<span style="color:var(--ot)">Overtime '+nf(w.h-w.cap)+' h</span><br>':''}Baseline ${nf(w.b)} h`}};
 }
 function fitGantt(){const gb=document.getElementById('gbody');if(!gb)return;if(window.innerWidth<700){gb.style.maxHeight='';return}
-  const kp=document.querySelector('.kpis');const k=getComputedStyle(kp).position==='sticky'?kp.offsetHeight:0;const tb=document.querySelector('#v-sched .toolbar').offsetHeight+16;const lbx=document.querySelector('.loadbox');const head=lbx.querySelector('h3').offsetHeight+lbx.querySelector('.legend').offsetHeight;const lb=head+(+document.getElementById('cLoad').getAttribute('height'))+20;
+  const kp=document.querySelector('.kpis');const k=getComputedStyle(kp).position==='sticky'?kp.offsetHeight:0;const tb=document.querySelector('#v-sched .toolbar').offsetHeight+16;const lbx=document.querySelector('.loadbox');const head=lbx.querySelector('h3').offsetHeight+lbx.querySelector('.legend').offsetHeight;const lcv=document.getElementById('cLoad');const lb=head+(+(lcv.dataset.h||lcv.getAttribute('height')))+20;
   gb.style.maxHeight=Math.max(120,window.innerHeight-k-tb-lb-44)+'px'}
 function ganttGeom(){const gb=document.getElementById('gbody');const lab=gb&&gb.querySelector('.grow2 .glab, .ghead .glab');if(!gb||!lab)return{};return{plotL:lab.getBoundingClientRect().width,plotR:gb.offsetWidth-gb.clientWidth}}
 function renderCharts(){if(VIEW!=='sched')return;drawLoad(document.getElementById('cLoad'),ganttGeom());drawS(document.getElementById('cHrs'),'hrs');drawS(document.getElementById('cTags'),'tags')}
@@ -903,13 +903,18 @@ async function buildSummaryPdf(){
     const dx=bx+34,dy=by+40;x.fillStyle=p.warn;x.beginPath();x.moveTo(dx,dy-14);x.lineTo(dx+14,dy);x.lineTo(dx,dy+14);x.lineTo(dx-14,dy);x.closePath();x.fill();
     x.font='bold 24px Lato, sans-serif';x.fillText('MILESTONE',bx+58,by+49);x.fillStyle='#555';x.font='24px Lato, sans-serif';x.fillText(lab,bx+22,by+84);
     x.fillStyle='#111';x.font='bold 46px Lato, sans-serif';x.fillText(fmtY(m?.date),bx+22,by+138);const t=dd2(m?.date,m?.base,'d');x.fillStyle=col(t);x.font='26px Lato, sans-serif';x.fillText(t,bx+22,by+176)});
-  const LW=760,gy=480,gh=1280,fs=26;drawGanttCanvas(x,M,gy,W-2*M,gh,LW,fs,p);
+  const LW=760,gy=470,gh=940,fs=20,lh=500;drawGanttCanvas(x,M,gy,W-2*M,gh,LW,fs,p);
   x.strokeStyle='#111';x.lineWidth=3;x.strokeRect(M,gy,W-2*M,gh);
-  const lc=document.createElement('canvas');Object.defineProperty(lc,'clientWidth',{value:W-2*M});drawLoad(lc,{theme:'light',W:W-2*M,H:620,fs:26,plotL:LW,plotR:0});
-  x.drawImage(lc,M,gy+gh+10,W-2*M,620);
-  x.fillStyle='#111';x.font='bold 28px Lato, sans-serif';x.fillText('Weekly loading vs capacity',M+12,gy+gh+60);
-  x.font='24px Lato, sans-serif';x.fillStyle='#555';['grey = hours needed','red = overtime','black line = technician capacity','dashed = Baseline'].forEach((t,i)=>x.fillText(t,M+12,gy+gh+100+i*32));
-  x.fillText('Timeline: blue bar = current window (orange = held by a delivery or receipt), grey line = Baseline, +/−d = finish vs Baseline, ◆ orange dashed line = milestone. Loading includes 0.25 h paperwork per request/receipt step.',M,H-60);
+  const lc=document.createElement('canvas');Object.defineProperty(lc,'clientWidth',{value:W-2*M});drawLoad(lc,{theme:'light',W:W-2*M,H:lh,fs:24,plotL:LW,plotR:0});
+  const ly=gy+gh+8;x.drawImage(lc,M,ly,W-2*M,lh);
+  x.fillStyle='#111';x.font='bold 28px Lato, sans-serif';x.fillText('Weekly loading vs capacity',M+12,ly+46);
+  x.font='23px Lato, sans-serif';x.fillStyle='#555';['grey = hours needed','red = overtime','black line = technician capacity','dashed = Baseline'].forEach((t,i)=>x.fillText(t,M+12,ly+84+i*30));
+  const sy=ly+lh+24,sh=H-sy-90,sw=(W-2*M-40)/2;
+  [['hrs','S-curve by install hours'],['tags','S-curve by tags installed']].forEach(([mode,title],i)=>{const sx=M+i*(sw+40);
+    x.fillStyle='#111';x.font='bold 28px Lato, sans-serif';x.fillText(title,sx,sy+28);x.font='23px Lato, sans-serif';x.fillStyle='#555';x.fillText('green = actual · black = forecast · dashed = Baseline',sx+430,sy+28);
+    const sc=document.createElement('canvas');Object.defineProperty(sc,'clientWidth',{value:sw});drawS(sc,mode,{theme:'light',W:sw,H:sh-40,fs:22});x.drawImage(sc,sx,sy+40,sw,sh-40);
+    x.strokeStyle='#d0d0d0';x.lineWidth=2;x.strokeRect(sx,sy+40,sw,sh-40)});
+  x.fillStyle='#555';x.font='23px Lato, sans-serif';x.fillText('Timeline: blue bar = current window (orange = held by a delivery or receipt), grey line = Baseline, +/−d = finish vs Baseline, ◆ orange dashed line = milestone. Loading includes 0.25 h paperwork per request/receipt step. S-curves cover all 249 tags.',M,H-40);
   return pdfFromPages([cv]);
 }
 /* Microsoft Project export: Excel file for Project's import wizard (File > Open > .xlsx) */
@@ -987,6 +992,10 @@ function theme(t){if(t)document.documentElement.setAttribute('data-theme',t);try
   document.getElementById('ldSave').onclick=async()=>{document.getElementById('mLoad').classList.remove('on');await saveAs()};
   document.getElementById('saveas').onclick=saveAs;
   document.getElementById('msp').onclick=doProjectExport;
+  const swbsKey=r=>{const src=r.type==='System'?r.swbs:(r.name.match(/^[\d.]+-[A-Z]?\d+/)||[r.swbs])[0];const m=String(src).match(/^(\d+)\.(\d+)(?:-([A-Z]?)(\d+))?/);return m?[+m[1],+m[2],r.type==='System'?0:1,m[3]||'',m[4]?+m[4]:0]:[9999,0,0,'',0]};
+  document.getElementById('sortSwbs').onclick=()=>{if(!S)return;const sorted=[...S.rows].sort((a,b)=>{const x=swbsKey(a),y=swbsKey(b);for(let i=0;i<5;i++){if(x[i]<y[i])return-1;if(x[i]>y[i])return 1}return C.rows[a.id].es-C.rows[b.id].es||a.name.localeCompare(b.name)});
+    if(sorted.every((r,i)=>r===S.rows[i]))return toast('Already in SWBS order');
+    commit(()=>{S.rows=sorted;log('Sort','All rows','Order','previous order','by SWBS number')});toast('Rows sorted by SWBS number')};
   document.getElementById('sortStart').onclick=()=>{if(!S)return;const key=r=>{const c=C.rows[r.id];return[c.es,c.ef,r.name]};
     const sorted=[...S.rows].sort((a,b)=>{const x=key(a),y=key(b);return x[0]-y[0]||x[1]-y[1]||x[2].localeCompare(y[2])});
     if(sorted.every((r,i)=>r===S.rows[i]))return toast('Already in start-date order');
