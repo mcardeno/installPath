@@ -216,7 +216,7 @@ header .btn{flex:0 0 auto}
   <button class="btn" id="dl">Download…</button>
   <div class="menuwrap"><button class="btn" id="mspBtn" aria-haspopup="true" aria-expanded="false">Microsoft Project ▾</button>
     <div class="menu" id="mspMenu" hidden>
-      <button id="msp" title="Excel file for the Microsoft Project import wizard">Export full schedule (new Project file)</button>
+      <button id="msp" title="Excel file for the Microsoft Project import wizard">Export to Project (new Project file)…</button>
       <button id="mspUpd" title="Actuals and comments only, to merge into the existing Project file">Update export (actuals and comments)</button>
       <button id="mspImp" title="Read a file exported from Microsoft Project">Import from Project…</button>
     </div></div>
@@ -290,7 +290,7 @@ header .btn{flex:0 0 auto}
 
 <script>
 "use strict";
-const BUILD="Rev 0.4";
+const BUILD="Rev 0.5";
 /* ============ dates & calendar ============ */
 const DAY=86400000;
 const isoToDn=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));return m?Date.UTC(+m[1],m[2]-1,+m[3])/DAY:null};
@@ -1025,7 +1025,9 @@ async function buildSummaryPdf(){
   return pdfFromPages([cv]);
 }
 /* Microsoft Project export: Excel file for Project's import wizard (File > Open > .xlsx) */
-function buildProjectXlsx(){
+function rowPriorities(){const rem=S.rows.filter(r=>C.rows[r.id]&&!C.rows[r.id].done);rem.sort((a,b)=>C.rows[a.id].es-C.rows[b.id].es||a.name.localeCompare(b.name,undefined,{numeric:true}));
+  const step=Math.max(1,Math.floor(900/Math.max(1,rem.length)));const P={};rem.forEach((r,i)=>P[r.id]=Math.max(100,1000-i*step));return P}
+function buildProjectXlsx(opt){opt=opt||{mode:'fixed'};const sched=opt.mode==='sched';const crew=Math.max(1,Math.round(opt.crew||1)),pool=Math.max(1,Math.round(opt.pool||S.settings.techs||1));const PRI=sched?rowPriorities():{};
   const st=S.settings,D='d',T='s',N='n';const out=[];const add=o=>{out.push(o);return out.length};
   const rowOf={};S.rows.forEach(r=>rowOf[r.id]=r);
   add({name:'Milestones',lvl:1});
@@ -1038,19 +1040,30 @@ function buildProjectXlsx(){
     add({name:sw,lvl:1});
     for(const t of by[sw].sort((a,b)=>a.tag.localeCompare(b.tag))){
       const c=C.tags[t.tag]||{};const r=rowOf[t.row];const inst=t.status==='Installed';const factory=!!(r&&r.ms)&&t.req==null;
-      add({name:`${t.tag} ${t.name}`,lvl:2,t1:t.tid,notes:t.comment});
+      add({name:`${t.tag} ${t.name}`,lvl:2,t1:t.tid,notes:t.comment,pri:sched&&!inst&&r?PRI[r.id]:null});
       let reqId=null;const recvDone=t.recv!=null||inst,recvA=t.recv??(inst?t.inst:null),reqDone=t.req!=null||recvDone,reqA=t.req??recvA;
-      if(!factory)reqId=add({name:'Request',lvl:3,dur:'15 mins',ct:reqDone?null:'Start No Earlier Than',cd:reqDone?null:c.req,af:reqA,as:reqA,pc:reqDone?100:0,t1:`${t.tag} Request`,s1:c.req});
+      const reqFloor=Math.max(st.restart||0,nextWork(st.statusDate));if(!factory)reqId=add({name:'Request',lvl:3,dur:'15 mins',ct:reqDone?null:(sched?(st.restart>st.statusDate?'Start No Earlier Than':null):'Start No Earlier Than'),cd:reqDone?null:(sched?(st.restart>st.statusDate?reqFloor:null):c.req),af:reqA,as:reqA,pc:reqDone?100:0,t1:`${t.tag} Request`,s1:c.req});
       const recvPred=factory?(r&&msId[r.ms]?String(msId[r.ms]):''):(reqId?`${reqId}FS+${st.lead} edays`:'');
       const recvId=add({name:'Receive',lvl:3,dur:'15 mins',pr:recvPred,ct:!recvDone&&t.fRecv!=null?'Start No Earlier Than':null,cd:!recvDone&&t.fRecv!=null?t.fRecv:null,af:recvA,as:recvA,pc:recvDone?100:0,t1:`${t.tag} Receive`,s1:c.recv,notes:factory?'Factory order: receipt is the delivery milestone':''});
       const dur=inst?(t.oStart!=null&&t.oFinish!=null?Math.max(1,wdBetween(t.oStart,t.oFinish)):1):Math.max(1,(C.rows[r.id]||{}).dur||1);
       const instPred=[`${recvId}FS+${st.buffer} edays`];if(r&&r.ms&&msId[r.ms])instPred.push(String(msId[r.ms]));
-      const instId=add({name:'Install',lvl:3,dur:dur+'d',pr:instPred.join(','),ct:inst?null:'Start No Earlier Than',cd:inst?null:c.start,af:t.inst,as:inst?(t.ist!=null&&t.ist<=t.inst?t.ist:null):(t.pct>0?(t.ist??null):null),pc:inst?100:(t.pct||0),t1:`${t.tag} Install`,s1:inst?null:c.start,f1:c.finish,bs:inst?t.oStart:(r?r.bStart:null),bf:inst?t.oFinish:(r?r.bFinish:null),work:hoursOf(S,t)});
+      const hrs=hoursOf(S,t);const remH=inst?hrs:hrs*(1-(t.pct||0)/100);const sDur=Math.max(1,Math.ceil(remH/((st.hpd||8)*crew)-1e-9));const useRes=sched&&!inst&&hrs>0;
+      const instId=add({name:'Install',lvl:3,dur:(sched&&!inst?Math.max(1,Math.ceil(hrs/((st.hpd||8)*crew)-1e-9)):dur)+'d',pr:instPred.join(','),ct:inst||sched?null:'Start No Earlier Than',cd:inst||sched?null:c.start,wk:useRes?r1(hrs)+'h':null,res:useRes?(crew>1?`Technicians[${crew*100}%]`:'Technicians'):null,pri:sched&&!inst&&r?PRI[r.id]:null,af:t.inst,as:inst?(t.ist!=null&&t.ist<=t.inst?t.ist:null):(t.pct>0?(t.ist??null):null),pc:inst?100:(t.pct||0),t1:`${t.tag} Install`,s1:inst?null:c.start,f1:c.finish,bs:inst?t.oStart:(r?r.bStart:null),bf:inst?t.oFinish:(r?r.bFinish:null),work:hoursOf(S,t)});
       add({name:'Engineer Reviewed',lvl:3,dur:st.revDur>0?st.revDur+'d':'0d',ms:st.revDur>0?'No':'Yes',f1:c.revEnd,pr:`${instId}FS+${st.revGap} edays,${revMs}`,ct:t.rev==null&&t.fRev!=null?'Start No Earlier Than':null,cd:t.rev==null&&t.fRev!=null?t.fRev:null,af:t.rev,as:t.rev,pc:t.rev!=null?100:(t.revPct||0),t1:`${t.tag} Engineer Reviewed`,s1:c.review});
     }
   }
-  const cols=[{h:'ID',w:6,t:N},{h:'Name',w:46,t:T},{h:'Outline Level',w:8,t:N},{h:'Duration',w:10,t:T},{h:'Predecessors',w:22,t:T},{h:'Constraint Type',w:20,t:T},{h:'Constraint Date',w:13,t:D},{h:'Actual Start',w:12,t:D},{h:'Actual Finish',w:12,t:D},{h:'% Complete',w:9,t:N},{h:'Milestone',w:9,t:T},{h:'Text1',w:30,t:T},{h:'Start1',w:12,t:D},{h:'Finish1',w:12,t:D},{h:'Baseline Start',w:12,t:D},{h:'Baseline Finish',w:12,t:D},{h:'Number1',w:9,t:N},{h:'Notes',w:40,t:T}];
-  const rows=out.map((o,i)=>[i+1,o.name,o.lvl,o.dur??null,o.pr||null,o.ct||null,o.cd??null,o.as??null,o.af??null,o.pc??null,o.ms||(o.dur?'No':null),o.t1||null,o.s1??null,o.f1??o.s1??null,o.bs??null,o.bf??null,o.work??null,o.notes||null]);
+  const cols=[{h:'ID',w:6,t:N},{h:'Name',w:46,t:T},{h:'Outline Level',w:8,t:N},{h:'Task Mode',w:14,t:T},{h:'Duration',w:10,t:T},...(sched?[{h:'Work',w:9,t:T},{h:'Resource Names',w:18,t:T},{h:'Priority',w:8,t:N}]:[]),{h:'Predecessors',w:22,t:T},{h:'Constraint Type',w:20,t:T},{h:'Constraint Date',w:13,t:D},{h:'Actual Start',w:12,t:D},{h:'Actual Finish',w:12,t:D},{h:'% Complete',w:9,t:N},{h:'Milestone',w:9,t:T},{h:'Text1',w:30,t:T},{h:'Start1',w:12,t:D},{h:'Finish1',w:12,t:D},{h:'Baseline Start',w:12,t:D},{h:'Baseline Finish',w:12,t:D},{h:'Number1',w:9,t:N},{h:'Notes',w:40,t:T}];
+  const rows=out.map((o,i)=>[i+1,o.name,o.lvl,'Auto Scheduled',o.dur??null,...(sched?[o.wk||null,o.res||null,o.pri??(o.lvl===1?null:500)]:[]),o.pr||null,o.ct||null,o.cd??null,o.as??null,o.af??null,o.pc??null,o.ms||(o.dur?'No':null),o.t1||null,o.s1??null,o.f1??o.s1??null,o.bs??null,o.bf??null,o.work??null,o.notes||null]);
+  if(sched){const nP=Object.keys(PRI).length;const readmeS=[['Microsoft Project export: Let Project schedule',`Made by Install Path ${BUILD} on ${stamp()}, status date ${fmtY(st.statusDate)}. ${out.length} tasks. Microsoft Project works out the durations and the finish date from the links, the work hours and the Technicians pool, then levelling spreads the installs so technicians aren’t overloaded.`],
+    ['How to import','See “MS Project – Let Project Schedule – Step-by-Step Guide.pdf”. In short: File > Open > this .xlsx > Import Wizard > New map > As a new project > tick BOTH Tasks and Resources > Tasks from sheet “Tasks”, Resources from sheet “Resources” > ID (not mapped) > Finish. Then add the Calendar tab’s dates as non-working time, set the status date, reschedule uncompleted work after the status date, and run Level All with leveling order “Priority, Standard”.'],
+    ['Links (the logic)',`Request → Receive: ${st.lead} calendar days. Receive → Install: ${st.buffer} calendar days. Install → Engineer Reviewed: ${st.revGap} calendar days, and not before “Milestone: Review team available”. Console installs also wait for their delivery milestone; factory consoles have no request step.`],
+    ['Fixed dates kept',`Only real outside dates are fixed: the delivery milestones and the review team date (Start No Earlier Than), receipts with a supplier forecast, reviews with a forecast date${st.restart>st.statusDate?`, and no request before the ${fmtY(st.restart)} restart`:''}. Installs have no fixed dates; Project schedules them.`],
+    ['Work and technicians',`Each remaining install has Work = its install hours and Resource Names = Technicians${crew>1?` at ${crew*100}% (${crew} technicians per install)`:' (1 technician per install)'}; its Duration is the hours ÷ (${st.hpd||8} × ${crew}). The Resources tab creates “Technicians” with Max Units ${pool*100}% (${pool} people). Change Max Units in Project’s Resource Sheet to try another crew size.`],
+    ['Priority',`Levelling decides who goes first by the Priority field. Each row (system install window) gets its own number from its start date in Install Path, earliest = 1000, then down in steps of ${Math.max(1,Math.floor(900/Math.max(1,nP)))}; rows starting the same day go in SWBS number order. Every tag in a row shares its row’s number. Finished work and other tasks are 500 (Project’s default).`],
+    ['Actuals','Finished steps carry their actual dates and 100% complete; installs in progress carry % complete and their start.'],
+    ['Reference fields','Start1/Finish1 = Install Path’s current dates (for comparison only). Baseline Start/Finish = the Install Path Baseline install window. Number1 = install hours. Text1 = fixed task code for later updates and imports.'],
+    ['Task Mode','Every task is “Auto Scheduled”, so Project calculates dates. (Manually scheduled tasks would not move.)']];
+    return writeXlsx([{name:'Read Me',cols:[{h:'Install Path',w:28,t:T},{h:'',w:120,t:T}],rows:readmeS},{name:'Tasks',cols,rows},{name:'Resources',cols:[{h:'Name',w:18,t:T},{h:'Type',w:8,t:T},{h:'Initials',w:8,t:T},{h:'Max Units',w:10,t:T},{h:'Base Calendar',w:14,t:T}],rows:[['Technicians','Work','TECH',`${pool*100}%`,'Standard']]},{name:'Calendar',cols:[{h:'Non-working date',w:16,t:D},{h:'Reason',w:36,t:T}],rows:S.cal.map(c=>[c.dn,c.reason])}])}
   const readme=[['Microsoft Project export',`Made by Install Path ${BUILD} on ${stamp()}. ${out.length} tasks.`],
     ['How to import','In Microsoft Project (desktop 2016 or newer, or Project for Microsoft 365): File > Open, choose this .xlsx, and follow the Import Wizard: New map > As a new project > Tasks > choose the sheet "Tasks" > the column names already match Project fields, so check each row maps to the field with the same name > Finish.'],
     ['Calendar first (recommended)','Project cannot read holidays from Excel. Before importing (or right after), set the project calendar to a 5-day week, 8 h/day, and add every date on the "Calendar" tab as non-working time (Project > Change Working Time > Exceptions).'],
@@ -1136,7 +1149,17 @@ function buildProjectUpdate(){const T='s',D='d',N='n';const rows=[];const st=S.s
     ['Notes','Notes replace the task’s existing notes in Project. Leave the Notes mapping out if you’d rather keep Project’s notes.']];
   return writeXlsx([{name:'Read Me',cols:[{h:'Install Path',w:26,t:T},{h:'',w:120,t:T}],rows:readme},{name:'Updates',cols:[{h:'Text1',w:26,t:T},{h:'Name',w:40,t:T},{h:'Actual Start',w:12,t:D},{h:'Actual Finish',w:12,t:D},{h:'% Complete',w:10,t:N},{h:'Notes',w:50,t:T}],rows}])}
 async function doProjectUpdate(){if(!S)return;try{const ok=await dlBlob(buildProjectUpdate(),`Install Path - MS Project Update - ${fileStamp()}.xlsx`);if(ok!==false)toast('Project update file ready')}catch(e){console.error(e);toast('Export failed: '+e.message)}}
-async function doProjectExport(){if(!S)return;try{const ok=await dlBlob(buildProjectXlsx(),`Install Path - MS Project Import - ${fileStamp()}.xlsx`);if(ok!==false)toast('Microsoft Project file ready')}catch(e){console.error(e);toast('Export failed: '+e.message)}}
+function doProjectExport(){if(!S)return;const card=document.getElementById('updCard');const tp=S.settings.techs||4;
+  card.innerHTML=`<h2>Export to Microsoft Project</h2><p class="note">Pick how Project should treat the dates.</p>
+   <label class="choice" style="align-items:flex-start;margin:10px 0"><input type="radio" name="xMode" value="sched" checked> <span><b>Let Project schedule</b> (to build the real plan in Project)<br><span class="note">Links, work hours and a Technicians pool; no fixed install dates. Project works out durations and the finish date, and levelling spreads the installs by priority (from each row’s start date here).</span></span></label>
+   <div class="row" id="xOpts" style="gap:14px;flex-wrap:wrap;margin-left:28px"><label>Technicians in the pool <input type="number" id="xPool" min="1" step="1" value="${tp}" style="width:5em"></label><label>Technicians per install <input type="number" id="xCrew" min="1" step="1" value="1" style="width:5em"></label></div>
+   <label class="choice" style="align-items:flex-start;margin:10px 0"><input type="radio" name="xMode" value="fixed"> <span><b>Fixed dates</b> (mirror Install Path exactly)<br><span class="note">Every install held at its Install Path start; no resources. Project shows the same dates as here.</span></span></label>
+   <p class="note">Your coworker’s step-by-step guide is “MS Project – Let Project Schedule – Step-by-Step Guide.pdf”.</p>
+   <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn" id="xGo">Export</button></div>`;
+  const sync=()=>{card.querySelector('#xOpts').style.opacity=card.querySelector('input[name=xMode]:checked').value==='sched'?'':'.4'};card.querySelectorAll('input[name=xMode]').forEach(x=>x.onchange=sync);sync();
+  card.querySelector('#xGo').onclick=async()=>{const mode=card.querySelector('input[name=xMode]:checked').value;const opt={mode,pool:+card.querySelector('#xPool').value||tp,crew:+card.querySelector('#xCrew').value||1};document.getElementById('mUpd').classList.remove('on');
+    try{const ok=await dlBlob(buildProjectXlsx(opt),`Install Path - MS Project ${mode==='sched'?'Schedule':'Fixed Dates'} - ${fileStamp()}.xlsx`);if(ok!==false)toast('Microsoft Project file ready')}catch(e){console.error(e);toast('Export failed: '+e.message)}};
+  document.getElementById('mUpd').classList.add('on')}
 let DIRTY=false,LASTSAVE='';
 function setDirty(v){DIRTY=v;const d=document.getElementById('dirty');if(d)d.hidden=!v}
 async function saveAs(){
