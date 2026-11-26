@@ -175,6 +175,13 @@ header .btn{flex:0 0 auto}
 .mk.rv b{transform:rotate(-45deg)}
 .gantt.dimbars .gbar{opacity:.35}
 .curves{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:14px;margin-top:16px}
+.gdrop{position:sticky;left:0;border-bottom:1px solid var(--line);border-left:4px solid var(--ctl);background:var(--ctlbg);padding:8px 10px 10px;font-size:15px}
+.gdrop .dh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px} .gdrop .dh b{margin-right:auto}
+.gdrop .dt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line)}
+.gdrop .dt .tn{min-width:13em;flex:1 1 13em} .gdrop .dt input[type=number]{width:4.4em;min-height:34px;padding:3px 6px} .gdrop .dt input.dCom{flex:2 1 12em;min-height:34px;padding:3px 8px}
+.grow2.dropon{background:var(--ctlbg)} .grow2.flash2{outline:2px solid var(--ctl);outline-offset:-2px}
+#baseBtn{min-height:32px;padding:2px 10px;font-size:14px} #baseBtn.plan{border-color:var(--warn);color:var(--warn)}
+#app.planning .bbar{display:none} #app.planning .legend span:has(> i[style*="--base"]){display:none}
 .rev{font-size:12px;color:var(--ink3);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
 @media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .kpi .v{font-size:24px} header,.bar2,.kpis,.tabs,.view{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
 @media (max-width:700px){
@@ -207,7 +214,7 @@ header .btn{flex:0 0 auto}
 <div id="app">
 <header>
   <div class="word serif">Install Path<svg viewBox="0 0 200 8" preserveAspectRatio="none"><path d="M2 5 C 50 1, 120 8, 198 3"/></svg></div>
-  <span class="rev" id="rev"></span><div class="plan" id="planName"></div>
+  <span class="rev" id="rev"></span><button class="btn sm" id="baseBtn"></button><div class="plan" id="planName"></div>
   <div class="spacer"></div>
   <button class="btn" id="undo" title="Undo the last change">Undo</button>
   <button class="btn" id="reset">Reset…</button>
@@ -241,7 +248,7 @@ header .btn{flex:0 0 auto}
 </div>
 <main>
   <section class="view on" id="v-sched">
-    <div class="toolbar"><input type="text" id="q" placeholder="Filter rows (SWBS, tag, name)" style="min-width:16em"><button class="btn" id="sortStart" title="Put the rows in order of start date (you can undo it)">Sort by start date</button><button class="btn" id="sortSwbs" title="Put the rows in SWBS number order; console and rack rows go by their tag number (you can undo it)">Sort by SWBS number</button><label class="choice"><input type="checkbox" id="showOrig"> Show original plan for installed work</label><span class="note">Drag a bar to move it, drag its right end to stretch it. Tap a row name to update its tags (done, % complete, reforecast, comment). Blue = editable.</span></div>
+    <div class="toolbar"><input type="text" id="q" placeholder="Filter rows (SWBS, tag, name)" style="min-width:16em"><button class="btn" id="sortStart" title="Put the rows in order of start date (you can undo it)">Sort by start date</button><button class="btn" id="sortSwbs" title="Put the rows in SWBS number order; console and rack rows go by their tag number (you can undo it)">Sort by SWBS number</button><label class="choice"><input type="checkbox" id="showOrig"> Show original plan for installed work</label><span class="note">Drag a bar to move it, drag its right end to stretch it. Tap a row name or bar for quick updates: its tags drop down with status, % complete and comments. The table at the bottom keeps the planning details. Blue = editable.</span></div>
     <div class="stepsel" id="stepsel"><span class="note">Lifecycle step:</span><button class="seg" data-step="request">Request</button><button class="seg" data-step="receipt">Receipt</button><button class="seg" data-step="install">Install</button><button class="seg" data-step="review">Engineer Review</button><button class="seg" data-step="all">All steps</button><span class="note" id="mkLegend" hidden>On the timeline: <i class="mk rq inl"></i> request <i class="mk rc inl"></i> receipt <i class="mk rv inl"></i> engineer review (number = tags on that date)</span></div>
     <div class="gwrap"><div class="ginner">
       <div class="gantt" id="gantt"></div>
@@ -290,7 +297,7 @@ header .btn{flex:0 0 auto}
 
 <script>
 "use strict";
-const BUILD="Rev 0.5";
+const BUILD="Rev 0.6";
 /* ============ dates & calendar ============ */
 const DAY=86400000;
 const isoToDn=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));return m?Date.UTC(+m[1],m[2]-1,+m[3])/DAY:null};
@@ -407,14 +414,15 @@ function writeXlsx(sheets){ // [{name, cols:[{h,w,t}], rows:[[]]}]  t: 'd' date(
 /* ============ state ============ */
 let S=null, BASE=null, LOADED=null, FILENAME='', C=null, BC=null; const UNDO=[];
 const STATUSES=['Not Started','Requested','WIP','Installed'];
-const SETKEYS={'Review duration (days)':'revDur','Baseline review duration (days)':'baseRevDur','Plan':'plan','Status date':'statusDate','Technicians':'techs','Hours per technician per day':'hpd','Request to receipt (days)':'lead','Receipt before install (days)':'buffer','Review after install (days)':'revGap','Review team available':'revFloor','Restart':'restart','Paperwork hours per step':'paper','Look-ahead (days)':'lookDays','Baseline technicians':'baseTechs','Baseline hours per day':'baseHpd'};
+const SETKEYS={'Review duration (days)':'revDur','Baseline review duration (days)':'baseRevDur','Plan':'plan','Status date':'statusDate','Technicians':'techs','Hours per technician per day':'hpd','Request to receipt (days)':'lead','Receipt before install (days)':'buffer','Review after install (days)':'revGap','Review team available':'revFloor','Restart':'restart','Paperwork hours per step':'paper','Look-ahead (days)':'lookDays','Baseline technicians':'baseTechs','Baseline hours per day':'baseHpd','Mode':'mode','Baseline version':'baseN'};
 const DATESET=new Set(['statusDate','revFloor','restart']);
 
 function parseWorkbook(sh){
   const need=['Settings','Milestones','Rows','Tags','Parts','Calendar'];
   const miss=need.filter(n=>!sh[n]);if(miss.length)throw new Error('This file is missing the tab(s): '+miss.join(', ')+'. Use the Install Path data file.');
   const st={revDur:1,baseRevDur:null,plan:'Installation schedule',techs:4,hpd:8,lead:14,buffer:7,revGap:7,revFloor:isoToDn('2027-05-03'),restart:isoToDn('2027-01-11'),paper:0.25,lookDays:14,statusDate:null,baseTechs:null,baseHpd:null};
-  for(const r of rowsOf(sh.Settings)){const k=SETKEYS[toStr(r.Setting)];if(!k)continue;const v=r.Value;st[k]=DATESET.has(k)?toDn(v):(k==='plan'?toStr(v):toNum(v))}
+  for(const r of rowsOf(sh.Settings)){const k=SETKEYS[toStr(r.Setting)];if(!k)continue;const v=r.Value;st[k]=DATESET.has(k)?toDn(v):((k==='plan'||k==='mode')?toStr(v):toNum(v))}
+  st.mode=/^track/i.test(String(st.mode||''))?'track':'plan';st.baseN=Math.max(0,Math.round(st.baseN||0));
   if(st.baseRevDur==null)st.baseRevDur=st.revDur;if(!(st.revDur>=0))st.revDur=1;
   if(st.baseTechs==null)st.baseTechs=st.techs; if(st.baseHpd==null)st.baseHpd=st.hpd;
   const milestones={};for(const r of rowsOf(sh.Milestones)){const id=toStr(r.ID);if(!id)continue;milestones[id]={id,name:toStr(r.Milestone),base:toDn(r['Baseline Date']),date:toDn(r.Date)??toDn(r['Baseline Date'])}}
@@ -442,6 +450,10 @@ function makeBaseline(L){
   return B;
 }
 
+const PLANNING=()=>!!S&&S.settings.mode!=='track';
+let BCACHE={};const bKey=St=>St.settings.mode+'|'+(St.settings.baseN||0);
+function syncBase(){if(!S)return;const k=bKey(S);if(BCACHE[k]){if(BCACHE[k].BASE!==BASE){BASE=BCACHE[k].BASE;BC=BCACHE[k].BC}return}
+  BASE=makeBaseline(JSON.parse(snap()));BC=compute(BASE);BC.stats=weeklyStats(BASE,BC);BCACHE[k]={BASE,BC}}
 /* ============ engine ============ */
 const hoursOf=(St,t)=>(St.parts[t.part]||{}).hours||0;
 function compute(St){
@@ -518,9 +530,8 @@ function start(L,name,restoreS){
   setDirty(false);
   LOADED=JSON.parse(JSON.stringify(L));FILENAME=name;HOL=new Set(L.cal.map(c=>c.dn));
   S=JSON.parse(JSON.stringify(L));if(restoreS)Object.assign(S,restoreS);
-  BASE=makeBaseline(L);BC=compute(BASE);BC.stats=weeklyStats(BASE,BC);UNDO.length=0;
+  BASE=makeBaseline(L);BC=compute(BASE);BC.stats=weeklyStats(BASE,BC);UNDO.length=0;BCACHE={[bKey(L)]:{BASE,BC}};DROP=null;
   document.getElementById('start').style.display='none';document.getElementById('app').style.display='block';
-  document.getElementById('planName').textContent=`Compared with the Baseline (the schedule as first issued) · ${name}`;
   setTimeline();refresh(false);
 }
 function setTimeline(){
@@ -535,14 +546,14 @@ const pct=d=>((d-TL.a)/(TL.b-TL.a+1)*100).toFixed(3)+'%';
 /* ============ render ============ */
 let OPEN=new Set(),VIEW='sched';
 function refresh(changed){
-  C=compute(S);C.stats=weeklyStats(S,C);C.items=items(S,C);
+  syncBase();C=compute(S);C.stats=weeklyStats(S,C);C.items=items(S,C);
   // extend timeline if needed
   for(const r of S.rows){const c=C.rows[r.id];if(c.ef+7>TL.b)TL.b=c.ef+21;if(c.es-5<TL.a)TL.a=c.es-10}
   renderTop();renderGantt();renderGrid();renderCharts();renderLists();renderParts();renderChanges();
   document.getElementById('undo').disabled=!UNDO.length;
   if(changed)save();
 }
-function dd(cur,base,unit,inv){if(cur==null||base==null)return'';const d=cur-base;if(Math.abs(d)<0.05)return'<span>same as Baseline</span>';const up=d>0;return`<span class="${up!==!!inv?'up':'dn'}">${up?'+':'−'}${unit==='d'?Math.abs(Math.round(d))+' days':nf(Math.abs(d))+' h'}</span> vs Baseline`}
+function dd(cur,base,unit,inv){if(PLANNING())return'';if(cur==null||base==null)return'';const d=cur-base;if(Math.abs(d)<0.05)return'<span>same as Baseline</span>';const up=d>0;return`<span class="${up!==!!inv?'up':'dn'}">${up?'+':'−'}${unit==='d'?Math.abs(Math.round(d))+' days':nf(Math.abs(d))+' h'}</span> vs Baseline`}
 function renderTop(){
   const st=S.settings;document.getElementById('techV').textContent=st.techs;document.getElementById('revDur').value=st.revDur;document.getElementById('hpd').value=st.hpd;
   document.getElementById('msNAV').value=dnToIso(S.milestones.NAV?.date);document.getElementById('msFDCR').value=dnToIso(S.milestones.FDCR?.date);
@@ -554,6 +565,10 @@ function renderTop(){
     ['Total overtime',nf(C.stats.ot)+' h',dd(C.stats.ot,BC.stats.ot,'h')],
     ['Install hours left',nf(C.remHours)+' h',`${C.remTags} tags · ${dd(C.remHours,BC.remHours,'h')}`],
     ['Late items',String(late),late?'<span class="up">past their planned date</span>':'nothing overdue']];
+  const pl=PLANNING();document.getElementById('app').classList.toggle('planning',pl);const bb=document.getElementById('baseBtn');bb.classList.toggle('plan',pl);
+  bb.textContent=pl?'Planning · Lock baseline…':`Tracking · Baseline ${S.settings.baseN||1} · Re-baseline…`;bb.title=pl?'Planning: no baseline lines or slip dates yet. Lock the baseline when the plan is agreed.':'Slips are measured against this baseline. Re-baseline asks for a reason.';
+  {const pn=document.getElementById('planName');pn.textContent=pl?FILENAME:`Compared with Baseline ${S.settings.baseN||1} · ${FILENAME}`;pn.title=pn.textContent}
+  for(const x of k)x[2]=x[2].replace(/^ · | · $/g,'');
   document.getElementById('kpis').innerHTML=k.map(x=>`<div class="kpi"><div class="l">${x[0]}</div><div class="v">${x[1]}</div><div class="d">${x[2]}</div></div>`).join('');
   document.getElementById('nAhead').textContent=aheadItems().length;document.getElementById('nLate').textContent=late;document.getElementById('nChg').textContent=S.changes.length;
 }
@@ -568,20 +583,20 @@ function trackDeco(head){
 function renderGrid(){
   const q=document.getElementById('q').value.trim().toLowerCase();
   const tagsBy={};for(const t of S.tags)(tagsBy[t.row]??=[]).push(t);
-  let h=`<thead><tr><th></th><th>Row</th><th class="num" title="Tags left / total">Tags</th><th class="num">Hours</th><th>Start</th><th class="num">Days</th><th>Finish</th><th class="num">Review</th><th class="num">vs Baseline</th></tr></thead><tbody>`;
+  let h=`<thead><tr><th></th><th>Row</th><th class="num" title="Tags left / total">Tags</th><th class="num">Hours</th><th>Start</th><th class="num">Days</th><th>Finish</th><th class="num">Review</th>${PLANNING()?'':'<th class="num">vs Baseline</th>'}</tr></thead><tbody>`;const PL=PLANNING();
   for(const r of S.rows){
     const c=C.rows[r.id];const ts=tagsBy[r.id]||[];
     if(!rowMatches(r,q,ts))continue;
     const delta=c.ef-r.bFinish;const done=c.done;
     h+=`<tr class="grow${done?' done':''}" data-id="${r.id}"><td><button class="exp" aria-label="Show tags">${OPEN.has(r.id)?'−':'+'}</button></td>
-      <td class="rname">${esc(r.name)}${r.ms?`<span class="tag-ms">${esc(r.ms)}</span>`:''}${(()=>{const bits=[];if(r.type!=='System')bits.push(esc(r.swbs.replace(/\s*\(.*\)$/,'')));if(c.pct>0)bits.push(`<b>${c.pct}% done</b>`);if(c.pushed)bits.push(`<span class="held">held by ${esc(c.why)}</span>`);if(r.comment)bits.push(`“${esc(r.comment)}”`);return bits.length?`<div class="sub">${bits.join(' · ')}</div>`:''})()}</td>
+      <td class="rname"><button class="btn sm toG" title="Show this row in the schedule above and open its tags">↑ Show in schedule</button> ${esc(r.name)}${r.ms?`<span class="tag-ms">${esc(r.ms)}</span>`:''}${(()=>{const bits=[];if(r.type!=='System')bits.push(esc(r.swbs.replace(/\s*\(.*\)$/,'')));if(c.pct>0)bits.push(`<b>${c.pct}% done</b>`);if(c.pushed)bits.push(`<span class="held">held by ${esc(c.why)}</span>`);if(r.comment)bits.push(`“${esc(r.comment)}”`);return bits.length?`<div class="sub">${bits.join(' · ')}</div>`:''})()}</td>
       <td class="num">${c.rem}${c.rem!==c.all?`<span class="sub">/${c.all}</span>`:''}</td><td class="num">${nf(c.hrs)}</td>
       <td><input type="date" class="iStart" value="${dnToIso(c.es)}" ${done?'disabled':''}></td>
       <td class="num"><input type="number" class="iDur" min="1" value="${c.dur}" ${done?'disabled':''}></td>
       <td><input type="date" class="iFin" value="${dnToIso(c.ef)}" ${done?'disabled':''}></td>
       <td class="num sub">${c.review!=null?fmt(c.review):'—'}</td>
-      <td class="num"><span class="delta ${delta>0?'up':delta<0?'dn':''}">${done?'done':delta===0?'0':(delta>0?'+':'−')+Math.abs(delta)+'d'}</span></td></tr>`;
-    if(OPEN.has(r.id))h+=`<tr class="detail"><td colspan="9">${detailHtml(r,ts)}</td></tr>`;
+      ${PL?'':`<td class="num"><span class="delta ${delta>0?'up':delta<0?'dn':''}">${done?'done':delta===0?'0':(delta>0?'+':'−')+Math.abs(delta)+'d'}</span></td>`}</tr>`;
+    if(OPEN.has(r.id))h+=`<tr class="detail"><td colspan="${PL?8:9}">${detailHtml(r,ts)}</td></tr>`;
   }
   document.getElementById('grid').innerHTML=h+'</tbody>';
 }
@@ -598,10 +613,11 @@ function renderGantt(){
      for(const sw of Object.keys(by).sort((a,b)=>Math.min(...by[a].map(t=>t.inst))-Math.min(...by[b].map(t=>t.inst))||a.localeCompare(b))){const ts=by[sw];if(q&&!sw.toLowerCase().includes(q)&&!ts.some(t=>t.tag.toLowerCase().includes(q)))continue;
        const wins=ts.filter(t=>t.oStart!=null&&t.oFinish!=null);const a=wins.length?Math.min(...wins.map(t=>t.oStart)):null,b=wins.length?Math.max(...wins.map(t=>t.oFinish)):null;const lastA=Math.max(...ts.map(t=>t.inst));
        h+=`<div class="grow2 orig"><div class="glab hl" title="${esc(sw)}: ${ts.length} installed tag(s). Faint bar = original planned window; green marks = actual install dates"><span class="gn">${esc(sw.replace(/\s*\(.*\)$/,''))}</span><span class="gd">${ts.length} done${b!=null?` · <span class="delta ${lastA<=b?'dn':'up'}">${lastA<=b?'early':'late'}</span>`:''}</span></div><div class="gtrack track">${deco}${a!=null?`<div class="obar" style="left:${pct(a)};width:calc(${pct(b+1)} - ${pct(a)})" title="Original plan ${fmt(a)} – ${fmt(b)}"></div>`:''}${[...new Set(ts.map(t=>t.inst))].map(d=>`<div class="itick" style="left:${pct(d)}" title="${fmt(d)}: ${ts.filter(t=>t.inst===d).length} tag(s) installed"></div>`).join('')}</div></div>`}}}
-  for(const r of S.rows){const c=C.rows[r.id];if(!rowMatches(r,q,tagsBy[r.id]||[]))continue;const done=c.done;const dl=c.ef-r.bFinish;
-    h+=`<div class="grow2${done?' done':''}" data-id="${r.id}"><div class="glab" title="${esc(r.name)} · ${fmt(c.es)} – ${fmt(c.ef)}${c.pushed?' · held by '+esc(c.why):''}"><span class="gn">${esc(r.name)}</span><span class="gd">${done?'done':fmt(c.es)+'–'+fmt(c.ef)}${!done&&dl?` <span class="delta ${dl>0?'up':'dn'}">${dl>0?'+':'−'}${Math.abs(dl)}d</span>`:''}</span></div>
-      <div class="gtrack track">${deco}<div class="bbar" style="left:${pct(r.bStart)};width:calc(${pct(r.bFinish+1)} - ${pct(r.bStart)})"></div><div class="gbar${c.pushed?' pushed':''}${done?' donebar':''}" style="left:${pct(c.es)};width:calc(${pct(c.ef+1)} - ${pct(c.es)})" title="${esc(r.name)}: ${fmt(c.es)} – ${fmt(c.ef)}">${done?'':'<div class="h"></div>'}</div>${rowMarks(r,mks)}</div></div>`}
-  const g=document.getElementById('gantt');const old=document.getElementById('gbody');const st=old?old.scrollTop:0;g.innerHTML=h+'</div>';document.getElementById('gbody').scrollTop=st;fitGantt();
+  const PL=PLANNING();
+  for(const r of S.rows){const c=C.rows[r.id];if(!rowMatches(r,q,tagsBy[r.id]||[]))continue;const done=c.done;const dl=PL?0:c.ef-r.bFinish;
+    h+=`<div class="grow2${done?' done':''}${DROP===r.id?' dropon':''}" data-id="${r.id}"><div class="glab" title="Tap for quick updates · "${esc(r.name)} · ${fmt(c.es)} – ${fmt(c.ef)}${c.pushed?' · held by '+esc(c.why):''}"><span class="gn">${esc(r.name)}</span><span class="gd">${done?'done':fmt(c.es)+'–'+fmt(c.ef)}${!done&&dl?` <span class="delta ${dl>0?'up':'dn'}">${dl>0?'+':'−'}${Math.abs(dl)}d</span>`:''}</span></div>
+      <div class="gtrack track">${deco}<div class="bbar" style="left:${pct(r.bStart)};width:calc(${pct(r.bFinish+1)} - ${pct(r.bStart)})"></div><div class="gbar${c.pushed?' pushed':''}${done?' donebar':''}" style="left:${pct(c.es)};width:calc(${pct(c.ef+1)} - ${pct(c.es)})" title="${esc(r.name)}: ${fmt(c.es)} – ${fmt(c.ef)}">${done?'':'<div class="h"></div>'}</div>${rowMarks(r,mks)}</div></div>`;if(DROP===r.id)h+=dropHtml(r,tagsBy[r.id]||[])}
+  const g=document.getElementById('gantt');const old=document.getElementById('gbody');const st=old?old.scrollTop:0;g.innerHTML=h+'</div>';document.getElementById('gbody').scrollTop=st;{const dr=g.querySelector('.gdrop'),gw=document.querySelector('.gwrap');if(dr&&gw)dr.style.maxWidth=gw.clientWidth+'px'}fitGantt();
 }
 function rowMarks(r,mks){if(!mks.length)return'';let h='';const ts=S.tags.filter(t=>t.row===r.id&&t.status!=='Installed');const cls={request:'rq',receipt:'rc',review:'rv'};
   for(const s of mks){const by=new Map();for(const t of ts){const c=C.tags[t.tag];if(!c)continue;const d=s==='request'?(c.reqK==='none'?null:c.req):s==='receipt'?c.recv:c.review;if(d==null||!isFinite(d))continue;by.set(d,(by.get(d)||0)+1)}
@@ -694,13 +710,13 @@ function drawS(cv,mode,o){
   const A=axes(ctx,W,H,{l:fs*4.2,r:12,t:10,b:fs*2.2},x0,x1,ymax,p,fs,v=>mode==='hrs'?nf(v):String(Math.round(v)));
   shadeShut(ctx,A,x0,x1,p);
   const step=(x1-x0)>300?2:1;const smp=a=>a.filter((x,i)=>i%step===0||i===a.length-1);
-  path(ctx,A,smp(bas).map(x=>[x[0],x[2]]),p.base,2,[7,5]);
+  const nb=PLANNING()&&!o.base;if(!nb)path(ctx,A,smp(bas).map(x=>[x[0],x[2]]),p.base,2,[7,5]);
   path(ctx,A,smp(cur.filter(x=>x[0]>=TODAY)).map(x=>[x[0],x[2]]),p.forecast,2.4);
   path(ctx,A,cur.filter(x=>x[0]<=TODAY).map(x=>[x[0],x[1]]),p.actual,3);
   vmark(ctx,A,TODAY,'Today',p.late,fs-1,false,0);
-  const ms=Object.values(S.milestones);ms.forEach((m,i)=>{vmark(ctx,A,m.date,m.id==='NAV'?'◆ Nav consoles':'◆ '+m.id,p.warn,fs-1,true,i+1);if(m.base!==m.date)vmark(ctx,A,m.base,'',p.base,fs-1,true)});
+  const ms=Object.values(S.milestones);ms.forEach((m,i)=>{vmark(ctx,A,m.date,m.id==='NAV'?'◆ Nav consoles':'◆ '+m.id,p.warn,fs-1,true,i+1);if(!nb&&m.base!==m.date)vmark(ctx,A,m.base,'',p.base,fs-1,true)});
   const last=cur[cur.length-1];ctx.fillStyle=p.ink2;ctx.font=`${fs-1}px Lato, sans-serif`;ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(`Total ${mode==='hrs'?nf(last[2])+' h':last[2]+' tags'}`,A.L+A.Wd,A.Y(last[2])-4);
-  CH[cv.id]={A,hover:d=>{const i=d-x0;if(i<0||i>=cur.length)return null;const c=cur[i],b=bas[i];const u=mode==='hrs'?' h':' tags';return`<b>${fmtY(d)}</b><br>${d<=TODAY?'Actual '+nf(c[1])+u+'<br>':''}${d>=TODAY?'Forecast '+nf(c[2])+u+'<br>':''}Baseline ${nf(b[2])}${u}`},x0,x1};
+  CH[cv.id]={A,hover:d=>{const i=d-x0;if(i<0||i>=cur.length)return null;const c=cur[i],b=bas[i];const u=mode==='hrs'?' h':' tags';return`<b>${fmtY(d)}</b><br>${d<=TODAY?'Actual '+nf(c[1])+u+'<br>':''}${d>=TODAY?'Forecast '+nf(c[2])+u+'<br>':''}${nb?'':'Baseline '+nf(b[2])+u}`},x0,x1};
 }
 let STEP='install';try{STEP=localStorage.getItem('installpath.step')||'install'}catch(e){}
 const STEPS={request:'Request',receipt:'Receipt',install:'Install',review:'Engineer Review'};
@@ -723,12 +739,13 @@ function drawSteps(cv,step,o){
   const tot=Math.max(1,...ser.map(x=>Math.max(x.cur.at(-1)[2],x.bas.at(-1)[2])));const ymax=niceMax(tot*1.05);
   const A=axes(ctx,W,H,{l:fs*4.2,r:12,t:10,b:fs*2.2},x0,x1,ymax,p,fs,v=>String(Math.round(v)));
   shadeShut(ctx,A,x0,x1,p);const stp=(x1-x0)>300?2:1;const smp=a=>a.filter((x,i)=>i%stp===0||i===a.length-1);
+  const nb=PLANNING()&&!o.base;
   for(const x of ser){
-    if(list.length===1){path(ctx,A,smp(x.bas).map(v=>[v[0],v[2]]),p.base,2,[7,5]);path(ctx,A,smp(x.cur.filter(v=>v[0]>=TODAY)).map(v=>[v[0],v[2]]),p.forecast,2.4);path(ctx,A,x.cur.filter(v=>v[0]<=TODAY).map(v=>[v[0],v[1]]),p.actual,3)}
-    else{ctx.save();ctx.globalAlpha=0.7;path(ctx,A,smp(x.bas).map(v=>[v[0],v[2]]),col[x.s],1.5,[6,4]);ctx.restore();path(ctx,A,smp(x.cur).map(v=>[v[0],v[0]<=TODAY?v[1]:v[2]]),col[x.s],2.4)}}
+    if(list.length===1){if(!nb)path(ctx,A,smp(x.bas).map(v=>[v[0],v[2]]),p.base,2,[7,5]);path(ctx,A,smp(x.cur.filter(v=>v[0]>=TODAY)).map(v=>[v[0],v[2]]),p.forecast,2.4);path(ctx,A,x.cur.filter(v=>v[0]<=TODAY).map(v=>[v[0],v[1]]),p.actual,3)}
+    else{ctx.save();ctx.globalAlpha=nb?0:0.7;path(ctx,A,smp(x.bas).map(v=>[v[0],v[2]]),col[x.s],1.5,[6,4]);ctx.restore();path(ctx,A,smp(x.cur).map(v=>[v[0],v[0]<=TODAY?v[1]:v[2]]),col[x.s],2.4)}}
   vmark(ctx,A,TODAY,'Today',p.late,fs-1,false,0);Object.values(S.milestones).forEach((m,i)=>vmark(ctx,A,m.date,m.id==='NAV'?'◆ Nav consoles':'◆ '+m.id,p.warn,fs-1,true,i+1));
   if(list.length===1){const last=ser[0].cur.at(-1);ctx.fillStyle=p.ink2;ctx.font=`${fs-1}px Lato, sans-serif`;ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(`Total ${last[2]} tags`,A.L+A.Wd,A.Y(last[2])-4)}
-  CH[cv.id]={A,hover:d=>{const i=d-x0;if(i<0||i>=ser[0].cur.length)return null;return`<b>${fmtY(d)}</b><br>`+ser.map(x=>{const c=x.cur[i],b=x.bas[i];return`${list.length>1?'<b>'+STEPS[x.s]+'</b>: ':''}${d<=TODAY?'actual '+c[1]:'forecast '+c[2]} · Baseline ${b[2]}`}).join('<br>')},x0,x1};
+  CH[cv.id]={A,hover:d=>{const i=d-x0;if(i<0||i>=ser[0].cur.length)return null;return`<b>${fmtY(d)}</b><br>`+ser.map(x=>{const c=x.cur[i],b=x.bas[i];return`${list.length>1?'<b>'+STEPS[x.s]+'</b>: ':''}${d<=TODAY?'actual '+c[1]:'forecast '+c[2]}${nb?'':' · Baseline '+b[2]}`}).join('<br>')},x0,x1};
 }
 function drawLoad(cv,o){
   o=o||{};const p=pal(o.theme);const {ctx,W,H}=setupCanvas(cv,o.W,o.H);const fs=o.fs||13;ctx.fillStyle=p.bg;ctx.fillRect(0,0,W,H);
@@ -745,11 +762,11 @@ function drawLoad(cv,o){
   // capacity step
   ctx.save();ctx.strokeStyle=p.ink;ctx.lineWidth=2;ctx.beginPath();weeks.forEach((w,i)=>{const x=A.X(w.m),y=A.Y(w.cap);i?ctx.lineTo(x,y):ctx.moveTo(x,y);ctx.lineTo(A.X(w.m+7),y)});ctx.stroke();ctx.restore();
   // baseline step
-  ctx.save();ctx.strokeStyle=p.base;ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();weeks.forEach((w,i)=>{const x=A.X(w.m),y=A.Y(w.b);i?ctx.lineTo(x,y):ctx.moveTo(x,y);ctx.lineTo(A.X(w.m+7),y)});ctx.stroke();ctx.restore();
+  const nb=PLANNING()&&!o.base;if(!nb){ctx.save();ctx.strokeStyle=p.base;ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();weeks.forEach((w,i)=>{const x=A.X(w.m),y=A.Y(w.b);i?ctx.lineTo(x,y):ctx.moveTo(x,y);ctx.lineTo(A.X(w.m+7),y)});ctx.stroke();ctx.restore()}
   if(TODAY>=x0&&TODAY<=x1)vmark(ctx,A,TODAY,'Today',p.late,fs-1,false,2);
   Object.values(S.milestones).forEach((m,i)=>vmark(ctx,A,m.date,m.id==='NAV'?'◆ Nav consoles':'◆ '+m.id,p.warn,fs-1,true,i));
   ctx.restore();
-  CH[cv.id]={A,hover:d=>{const w=weeks.find(w=>d>=w.m&&d<w.m+7);if(!w)return null;return`<b>Week of ${fmtY(w.m)}</b><br>Needed ${nf(w.h)} h · capacity ${nf(w.cap)} h<br>${w.h>w.cap?'<span style="color:var(--ot)">Overtime '+nf(w.h-w.cap)+' h</span><br>':''}Baseline ${nf(w.b)} h`}};
+  CH[cv.id]={A,hover:d=>{const w=weeks.find(w=>d>=w.m&&d<w.m+7);if(!w)return null;return`<b>Week of ${fmtY(w.m)}</b><br>Needed ${nf(w.h)} h · capacity ${nf(w.cap)} h<br>${w.h>w.cap?'<span style="color:var(--ot)">Overtime '+nf(w.h-w.cap)+' h</span><br>':''}${nb?'':'Baseline '+nf(w.b)+' h'}`}};
 }
 function fitGantt(){const gb=document.getElementById('gbody');if(!gb)return;if(window.innerWidth<700){gb.style.maxHeight='';return}
   const kp=document.querySelector('.kpis');const k=getComputedStyle(kp).position==='sticky'?kp.offsetHeight:0;const tb=document.querySelector('#v-sched .toolbar').offsetHeight+document.getElementById('stepsel').offsetHeight+26;const lbx=document.querySelector('.loadbox');const head=lbx.querySelector('h3').offsetHeight+lbx.querySelector('.legend').offsetHeight;const lcv=document.getElementById('cLoad');const lb=head+(+(lcv.dataset.h||lcv.getAttribute('height')))+20;
@@ -758,9 +775,10 @@ function ganttGeom(){const gb=document.getElementById('gbody');const lab=gb&&gb.
 function renderCharts(){if(VIEW!=='sched')return;drawLoad(document.getElementById('cLoad'),ganttGeom());
   document.querySelectorAll('#stepsel .seg').forEach(b=>b.classList.toggle('on',b.dataset.step===STEP));document.getElementById('mkLegend').hidden=STEP==='install';
   const bh=document.getElementById('boxHrs'),ht=document.getElementById('hTags'),lt=document.getElementById('lTags');
-  const std='<span><i class="sw" style="border-color:var(--actual)"></i>Actual</span><span><i class="sw" style="border-color:var(--forecast)"></i>Forecast</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span>';
+  let std='<span><i class="sw" style="border-color:var(--actual)"></i>Actual</span><span><i class="sw" style="border-color:var(--forecast)"></i>Forecast</span><span><i class="sw dash" style="border-color:var(--base)"></i>Baseline</span>';
+  if(PLANNING())std=std.replace(/<span><i class="sw dash" style="border-color:var\(--base\)"><\/i>Baseline<\/span>/,'');
   if(STEP==='install'){bh.hidden=false;ht.textContent='S-curve by tags installed';lt.innerHTML=std;drawS(document.getElementById('cHrs'),'hrs');drawS(document.getElementById('cTags'),'tags')}
-  else if(STEP==='all'){bh.hidden=false;ht.textContent='S-curves by tags: all lifecycle steps';lt.innerHTML=['request','receipt','install','review'].map(s=>`<span><i class="sw" style="border-color:var(${s==='install'?'--forecast':s==='request'?'--mkReq':s==='receipt'?'--mkRecv':'--mkRev'})"></i>${STEPS[s]}</span>`).join('')+'<span>solid = actual then forecast · dashed = Baseline</span>';drawS(document.getElementById('cHrs'),'hrs');drawSteps(document.getElementById('cTags'),'all')}
+  else if(STEP==='all'){bh.hidden=false;ht.textContent='S-curves by tags: all lifecycle steps';lt.innerHTML=['request','receipt','install','review'].map(s=>`<span><i class="sw" style="border-color:var(${s==='install'?'--forecast':s==='request'?'--mkReq':s==='receipt'?'--mkRecv':'--mkRev'})"></i>${STEPS[s]}</span>`).join('')+(PLANNING()?'<span>actual then forecast</span>':'<span>solid = actual then forecast · dashed = Baseline</span>');drawS(document.getElementById('cHrs'),'hrs');drawSteps(document.getElementById('cTags'),'all')}
   else{bh.hidden=true;ht.textContent=`S-curve by tags ${STEPVERB[STEP]}`;lt.innerHTML=std;drawSteps(document.getElementById('cTags'),STEP)}}
 function hookTips(){for(const id of['cLoad','cHrs','cTags']){const cv=document.getElementById(id);const tip=cv.nextElementSibling;
   const show=e=>{const ch=CH[id];if(!ch)return;const r=cv.getBoundingClientRect();const x=e.clientX-r.left;if(x<ch.A.L||x>ch.A.L+ch.A.Wd){tip.style.display='none';return}
@@ -813,7 +831,7 @@ function onMove(e){if(MSD)return msMove(e);if(!DRAG)return;const days=Math.round
     const gd=DRAG.bar.closest('.grow2')?.querySelector('.gd');if(gd)gd.textContent=fmt(nc.es)+'–'+fmt(nc.ef);const tr=document.querySelector(`#grid tr.grow[data-id="${r.id}"]`);if(tr){tr.querySelector('.iStart').value=dnToIso(nc.es);tr.querySelector('.iFin').value=dnToIso(nc.ef);tr.querySelector('.iDur').value=nc.dur}
     renderTop();renderCharts()})}
 function onUp(){if(MSD)return msUp();if(!DRAG)return;const {r,orig,days}=DRAG;DRAG.bar.classList.remove('drag');const s=r.start,f=r.finish;r.start=orig.start;r.finish=orig.finish;const d=DRAG;DRAG=null;
-  if(!days){refresh();return}C=compute(S);C.stats=weeklyStats(S,C);C.items=items(S,C);setRow(r,s,f,d.mode==='move'?'Drag move':'Drag stretch')}
+  if(!days){toggleDrop(r.id);return}C=compute(S);C.stats=weeklyStats(S,C);C.items=items(S,C);setRow(r,s,f,d.mode==='move'?'Drag move':'Drag stretch')}
 
 /* ============ status / reforecast modal ============ */
 let UPD=null;
@@ -840,6 +858,7 @@ function openUpdate(item,fromTag){
    ${item.rowTap?'<div class="row"><button class="btn sm" id="uShowTags">Show this row’s tags in the table ↓</button></div>':''}
    <div class="row"><label class="choice"><input type="radio" name="uAct" value="fc"> Reforecast to</label><input type="date" id="uFc" value="${dnToIso(isFinite(item.date)?item.date:TODAY)}"></div>
    <div class="row" id="uHow" style="display:none"><label class="choice"><input type="radio" name="uMv" value="shift" checked> Shift the whole window</label><label class="choice"><input type="radio" name="uMv" value="stretch"> Keep start, move finish</label></div>
+   <div class="row"><label class="choice"><input type="radio" name="uAct" value="back"> Move back a step (fix a mistake)</label></div>
    <div class="row"><label class="choice"><input type="radio" name="uAct" value="note"> Comment only</label></div>
    <div class="row" style="flex-direction:column;align-items:stretch"><label>Comment</label><textarea id="uCom" rows="2">${esc(item.kind==='Install'&&item.row?(rowById(item.row)||{}).comment||'':t0?.comment||'')}</textarea></div>
    <p class="note" id="uHint"></p><p class="err" id="uErr"></p>
@@ -849,11 +868,13 @@ function openUpdate(item,fromTag){
     const act0=card.querySelector('input[name=uAct]:checked').value,stepAct=act0==='done'||act0==='pct';const tg=item.tags.map(t=>S.tags.find(x=>x.tag===t));const elig=tg.filter(t=>canStep(t,k));
     if(multi){card.querySelectorAll('.uTag').forEach(cb=>{const t=S.tags.find(x=>x.tag===cb.value);const ok=canStep(t,k);if(stepAct){if(cb.dataset.k!==k){cb.checked=ok;cb.dataset.k=k}cb.disabled=!ok;cb.parentElement.style.opacity=ok?'':'.5'}else{cb.disabled=false;cb.parentElement.style.opacity=''}})}
     const el=card.querySelector('#uElig');if(el)el.textContent=stepAct?(elig.length===tg.length?'':elig.length?`${elig.length} of ${tg.length} can take this step now; the others are greyed out (steps go in order: request, receipt, install, review).`:(tg.length===1?`This tag is ${tg[0].status}; its next step is ${NEXTSTEP(tg[0])}.`:'None of these tags can take this step yet. Steps go in order: request, receipt, install, review.')):'';
+    {const pi=card.querySelector('#uPct');if(!pi.dataset.touched){const sel=(multi?[...card.querySelectorAll('.uTag:checked')].map(cb=>S.tags.find(x=>x.tag===cb.value)):tg).filter(t=>canStep(t,k));const vals=[...new Set(sel.map(t=>k==='Engineer Review'?(t.revPct||0):(t.pct||0)))];
+      if(vals.length>1){pi.value='';pi.placeholder='mixed'}else{pi.placeholder='';pi.value=vals.length&&vals[0]?vals[0]:''}}}
     const canPct=(k==='Install'||k==='Engineer Review')&&elig.length>0;card.querySelector('#uPctRow').style.display=canPct?'flex':'none';if(!canPct&&card.querySelector('input[name=uAct]:checked').value==='pct')card.querySelector('input[name=uAct][value=done]').checked=true;
     const rows=item.row?rowById(item.row):null;const nTags=rows?S.tags.filter(t=>t.row===rows.id&&t.status!=='Installed').length:0;
-    card.querySelector('#uHint').textContent=k==='Install'&&fc?`Reforecasting the install moves the whole row${nTags>1?` (${nTags} tags)`:''}; loading and charts update.`:card.querySelector('input[name=uAct]:checked').value==='pct'?(k==='Install'?'Type how much of the install is done (any number, e.g. 40). The remaining hours spread over the rest of the window, and the S-curve counts the done part. When it’s finished, use Installed on.':'Type how much of the review is done.'):k==='Request'&&fc?'Receipt follows 14 days later; a later receipt holds the install back.':k==='Receipt'&&fc?'A receipt later than the install start holds the install back.':''};
+    card.querySelector('#uHint').textContent=k==='Install'&&fc?`Reforecasting the install moves the whole row${nTags>1?` (${nTags} tags)`:''}; loading and charts update.`:act0==='back'?backHint(multi?[...card.querySelectorAll('.uTag:checked')].map(cb=>S.tags.find(x=>x.tag===cb.value)):tg):card.querySelector('input[name=uAct]:checked').value==='pct'?(k==='Install'?'Type how much of the install is done (any number, e.g. 40). The remaining hours spread over the rest of the window, and the S-curve counts the done part. When it’s finished, use Installed on.':'Type how much of the review is done.'):k==='Request'&&fc?'Receipt follows 14 days later; a later receipt holds the install back.':k==='Receipt'&&fc?'A receipt later than the install start holds the install back.':''};
   card.querySelectorAll('input,select').forEach(x=>x.addEventListener('change',sync));
-  card.querySelector('#uPct').addEventListener('input',()=>{const r=card.querySelector('input[name=uAct][value=pct]');if(!r.checked){r.checked=true;sync()}});
+  card.querySelector('#uPct').addEventListener('input',e=>{e.target.dataset.touched='1';const r=card.querySelector('input[name=uAct][value=pct]');if(!r.checked){r.checked=true;sync()}});
   const st=card.querySelector('#uShowTags');if(st)st.onclick=()=>{document.getElementById('mUpd').classList.remove('on');showRowTags(item.row)};sync();
   document.getElementById('mUpd').classList.add('on');
 }
@@ -866,17 +887,11 @@ function saveUpdate(){
   let tags=sel.map(t=>S.tags.find(x=>x.tag===t));
   if(act==='done'||act==='pct'){const ok=tags.filter(t=>canStep(t,kind));if(!ok.length)return err(tags.length===1?`This tag is ${tags[0].status}; its next step is ${NEXTSTEP(tags[0])}. Steps go in order: request, receipt, install, review.`:'None of the ticked tags can take this step yet. Steps go in order: request, receipt, install, review.');tags=ok}
   if(act==='done'){const d=isoToDn(card.querySelector('#uDone').value);if(d==null)return err('Enter the date it happened.');if(d>TODAY)return err('A done date can’t be in the future. Use Reforecast instead.');
-    commit(()=>{for(const t of tags){
-      if(kind==='Request'){log('Status',t.tag,'Requested (actual)',dnToIso(t.req),dnToIso(d),com);t.req=d;if(t.status==='Not Started')t.status='Requested';t.fReq=null}
-      else if(kind==='Receipt'){log('Status',t.tag,'Received (actual)',dnToIso(t.recv),dnToIso(d),com);t.recv=d;if(t.status!=='Installed')t.status='WIP';t.fRecv=null}
-      else if(kind==='Install'){log('Status',t.tag,'Installed (actual)',t.status,`Installed ${dnToIso(d)}`,com);t.inst=d;t.status='Installed';t.pct=0;if(t.ist!=null&&t.ist>d)t.ist=d}
-      else{log('Status',t.tag,'Engineer reviewed (actual)',dnToIso(t.rev),dnToIso(d),com);t.rev=d;t.fRev=null;t.revPct=0}
-      if(com)t.comment=com}});
+    applyDone(tags,kind,d,com);
     if(kind==='Install'){document.getElementById('mUpd').classList.remove('on');askEffort(tags);return}
   }else if(act==='pct'){const v=card.querySelector('#uPct').value;if(v==='')return err('Type the % complete.');const p=Math.round(+v);if(!(p>=0))return err('Type a number from 0 to 99.');if(p>=100)return err('For 100%, choose the done option and its date instead.');
-    commit(()=>{for(const t of tags){if(kind==='Install'){if(t.status==='Installed')continue;log('Progress',t.tag,'Install % complete',t.pct||0,p,com);t.pct=p;if(p>0){if(t.ist==null)t.ist=Math.min(TODAY,Math.max(C.tags[t.tag]?.start??TODAY,TODAY-365));if(t.status!=='Installed')t.status='WIP'}}
-      else{if(t.rev!=null)continue;log('Progress',t.tag,'Review % complete',t.revPct||0,p,com);t.revPct=p}
-      if(com)t.comment=com}});
+    applyPct(tags,kind,p,com);
+  }else if(act==='back'){const r=applyBack(tags,com);if(r)return err(r);
   }else if(act==='fc'){const d=isoToDn(card.querySelector('#uFc').value);if(d==null)return err('Enter the new forecast date.');
     if(kind==='Install'){const r=rowById(tags[0].row);if(!r)return err('This tag has no schedule row.');const c=C.rows[r.id];const how=card.querySelector('input[name=uMv]:checked').value;
       let s=c.es,f=d;if(how==='shift'){const span=c.ef-c.es;s=placeMove(d-span,span,c.dur,d-c.ef);f=addWork(s,c.dur)}else if(d<c.es)return err('Finish can’t be before the start ('+fmt(c.es)+').');
@@ -890,6 +905,72 @@ function saveUpdate(){
   document.getElementById('mUpd').classList.remove('on');toast('Saved');
 }
 
+function applyDone(tags,kind,d,com){commit(()=>{for(const t of tags){
+      if(kind==='Request'){log('Status',t.tag,'Requested (actual)',dnToIso(t.req),dnToIso(d),com);t.req=d;if(t.status==='Not Started')t.status='Requested';t.fReq=null}
+      else if(kind==='Receipt'){log('Status',t.tag,'Received (actual)',dnToIso(t.recv),dnToIso(d),com);t.recv=d;if(t.status!=='Installed')t.status='WIP';t.fRecv=null}
+      else if(kind==='Install'){log('Status',t.tag,'Installed (actual)',t.status,`Installed ${dnToIso(d)}`,com);t.inst=d;t.status='Installed';t.pct=0;if(t.ist!=null&&t.ist>d)t.ist=d}
+      else{log('Status',t.tag,'Engineer reviewed (actual)',dnToIso(t.rev),dnToIso(d),com);t.rev=d;t.fRev=null;t.revPct=0}
+      if(com)t.comment=com}})}
+function applyPct(tags,kind,p,com){commit(()=>{for(const t of tags){if(kind==='Install'){if(t.status==='Installed')continue;log('Progress',t.tag,'Install % complete',t.pct||0,p,com);t.pct=p;if(p>0){if(t.ist==null)t.ist=Math.min(TODAY,Math.max(C.tags[t.tag]?.start??TODAY,TODAY-365));if(t.status!=='Installed')t.status='WIP'}}
+      else{if(t.rev!=null)continue;log('Progress',t.tag,'Review % complete',t.revPct||0,p,com);t.revPct=p}
+      if(com)t.comment=com}})}
+/* move back one step (Rev 0.6): undoes the latest step a tag has taken */
+function backOf(t){if(!t)return null;if(t.rev!=null)return{from:'Engineer reviewed '+fmt(t.rev),to:'Installed (review not done)'};
+  if(t.status==='Installed')return rowById(t.row)?{from:'Installed '+fmt(t.inst),to:'WIP'}:{bad:`${t.tag} was installed before the plan and has no schedule row, so it can’t go back.`};
+  if(t.status==='WIP')return{from:'WIP (received'+(t.recv!=null?' '+fmt(t.recv):'')+')',to:t.req!=null?'Requested':'Not Started'};
+  if(t.status==='Requested')return{from:'Requested'+(t.req!=null?' '+fmt(t.req):''),to:'Not Started'};return null}
+function backHint(tags){const L=tags.map(t=>{const b=backOf(t);return b?(b.bad||`${t.tag}: ${b.from} → ${b.to}`):`${t.tag}: nothing to undo`});return(L.length>4?L.slice(0,4).join(' · ')+` · and ${L.length-4} more`:L.join(' · '))+'. You can undo this too.'}
+function applyBack(tags,com){const ok=tags.filter(t=>{const b=backOf(t);return b&&!b.bad});if(!ok.length){const b=tags.map(backOf).find(x=>x&&x.bad);return b?b.bad:'Nothing to move back: these tags haven’t taken a step yet.'}
+  commit(()=>{for(const t of ok){const b=backOf(t);log('Step back',t.tag,'Status',b.from,b.to,com);
+    if(t.rev!=null){t.rev=null;t.revPct=0}
+    else if(t.status==='Installed'){t.status='WIP';t.inst=null;t.ah=null;t.pct=0}
+    else if(t.status==='WIP'){t.recv=null;t.pct=0;t.ist=null;t.status=t.req!=null?'Requested':'Not Started'}
+    else if(t.status==='Requested'){t.req=null;t.status='Not Started'}
+    if(com)t.comment=com}});toast(ok.length===1?`${ok[0].tag} moved back a step`:`${ok.length} tags moved back a step`);return null}
+/* ============ schedule drop-down (Rev 0.6) ============ */
+let DROP=null;
+const NEXTDONE={Request:'Requested',Receipt:'Received','Install':'Installed','Engineer Review':'Reviewed'};
+function dropHtml(r,ts){const c=C.rows[r.id];
+  let h=`<div class="gdrop" data-row="${esc(r.id)}"><div class="dh"><b>${esc(r.name)} · ${c.done?'done':fmt(c.es)+' – '+fmt(c.ef)}</b>${ts.length>1?`<button class="btn sm" data-dact="all">Update all ${ts.length} tags…</button>`:''}<button class="btn sm" data-dact="list">Show in list ↓</button><button class="btn sm" data-dact="close" aria-label="Close">✕</button></div>`;
+  if(!ts.length)h+='<div class="note">No tags in this row.</div>';
+  for(const t of ts){const k=NEXTSTEP(t);const can=k in NEXTDONE&&canStep(t,k);const b=backOf(t);
+    const pctK=t.status==='WIP'?'Install':(t.status==='Installed'&&t.rev==null)?'Engineer Review':null;const pv=pctK==='Install'?t.pct:t.revPct;
+    h+=`<div class="dt" data-tag="${esc(t.tag)}"><span class="tn"><b>${esc(t.tag)}</b> ${esc(t.name)} <span class="pill ${t.status.replace(' ','')}">${t.status}</span>${t.status==='Installed'?' '+fmt(t.inst):''}${t.rev!=null?' <span class="kind act">reviewed '+fmt(t.rev)+'</span>':''}</span>
+      ${pctK?`<label class="note">${pctK==='Install'?'Install':'Review'} <input type="number" class="dPct" min="0" max="100" step="5" value="${pv||''}" placeholder="0" data-k="${pctK}" aria-label="${pctK} % complete">%</label>`:''}
+      ${can?`<button class="btn sm" data-dact="next" data-k="${k}" title="${k} done today (use More… for another date)">✓ ${NEXTDONE[k]} today</button>`:''}
+      ${b&&!b.bad?`<button class="btn sm" data-dact="back" title="${esc(b.from)} → ${esc(b.to)}">↶ Back a step</button>`:''}
+      <button class="btn sm" data-dact="more" title="Other dates, reforecast, comment">More…</button>
+      <input type="text" class="dCom" value="${esc(t.comment)}" placeholder="Comment" aria-label="Comment for ${esc(t.tag)}"></div>`}
+  return h+'</div>'}
+function toggleDrop(id){DROP=DROP===id?null:id;renderGantt()}
+function showInSchedule(id){DROP=id;document.getElementById('q').value='';renderGantt();renderGrid();const el=document.querySelector(`#gantt .grow2[data-id="${id}"]`);if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('flash2');setTimeout(()=>el.classList.remove('flash2'),1600)}}
+function tagMore(tg){const t=S.tags.find(x=>x.tag===tg);const c=C.tags[tg]||{};
+  const k=t.status==='Installed'?'Engineer Review':t.recv!=null?'Install':t.req!=null||c.reqK==='none'?'Receipt':'Request';
+  openUpdate({kind:k,date:k==='Request'?c.req:k==='Receipt'?c.recv:k==='Install'?c.finish:c.review,tags:[tg],row:t.row,label:tg,sub:t.name},true)}
+function onDropClick(e){const b=e.target.closest('[data-dact]');if(!b)return false;const dr=b.closest('.gdrop');const id=dr.dataset.row;const a=b.dataset.dact;const tg=b.closest('.dt')?.dataset.tag;const t=tg?S.tags.find(x=>x.tag===tg):null;
+  if(a==='close')toggleDrop(id);else if(a==='list')showRowTags(id);else if(a==='all')openRowUpdate(id);else if(a==='more')tagMore(tg);
+  else if(a==='back')applyBack([t],'');
+  else if(a==='next'){const k=b.dataset.k;if(!canStep(t,k))return true;applyDone([t],k,TODAY,'');toast(`${t.tag}: ${NEXTDONE[k].toLowerCase()} ${fmt(TODAY)}`);if(k==='Install')askEffort([t])}
+  return true}
+function onDropChange(e){const dt=e.target.closest('.gdrop .dt');if(!dt)return;const t=S.tags.find(x=>x.tag===dt.dataset.tag);if(!t)return;
+  if(e.target.classList.contains('dCom')){const v=e.target.value.trim();if(v===(t.comment||''))return;commit(()=>{log('Comment',t.tag,'Comment',t.comment,v);t.comment=v});return}
+  if(e.target.classList.contains('dPct')){const k=e.target.dataset.k;const raw=String(e.target.value).trim();if(raw===''){return refresh()}const p=Math.round(+raw);if(!(p>=0))return refresh();
+    if(p>=100){if(!canStep(t,k))return refresh();applyDone([t],k,TODAY,'');toast(`${t.tag}: ${NEXTDONE[k].toLowerCase()} ${fmt(TODAY)}`);if(k==='Install')askEffort([t]);return}
+    if(p===(k==='Install'?(t.pct||0):(t.revPct||0)))return;applyPct([t],k,p,'')}}
+/* ============ lock / re-baseline (Rev 0.6) ============ */
+function openBaseline(){if(!S)return;const card=document.getElementById('updCard');const pl=PLANNING();const n=(S.settings.baseN||0)+1;
+  card.innerHTML=pl?`<h2>Lock the baseline</h2><p>This saves today’s plan as Baseline ${n}: every row’s install window, the delivery dates, the hours per part and the technician settings.</p><p class="note">From then on the schedule shows grey baseline lines, red and green slip days, and the S-curve baselines, all measured against this plan. Until then (planning), none of that shows, so you can move things freely. You can undo it.</p><div class="actions"><button class="btn" data-close>Cancel</button><button class="btn" id="bGo">Lock baseline</button></div>`
+   :`<h2>Re-baseline</h2><p>This replaces Baseline ${n-1} with today’s plan as Baseline ${n}. Slips will be measured against the new plan.</p><div class="row" style="flex-direction:column;align-items:stretch"><label>Reason (required)</label><textarea id="bWhy" rows="2" placeholder="e.g. Console delivery moved by the supplier"></textarea></div><p class="err" id="bErr"></p><div class="actions"><button class="btn" data-close>Cancel</button><button class="btn" id="bGo">Re-baseline</button></div>`;
+  card.querySelector('#bGo').onclick=()=>{let why='';if(!pl){why=card.querySelector('#bWhy').value.trim();if(!why){card.querySelector('#bErr').textContent='Type the reason for the re-baseline.';return}}document.getElementById('mUpd').classList.remove('on');lockBaseline(why)};
+  document.getElementById('mUpd').classList.add('on')}
+function lockBaseline(why){const st=S.settings;const n=(st.baseN||0)+1;const first=PLANNING()&&!st.baseN;const fin=C.finish;
+  UNDO.push(snap());if(UNDO.length>80)UNDO.shift();
+  for(const r of S.rows){const c=C.rows[r.id];if(c&&!c.done){r.bStart=c.es;r.bFinish=c.ef}}
+  for(const k in S.milestones)S.milestones[k].base=S.milestones[k].date;
+  for(const k in S.parts)S.parts[k].bHours=S.parts[k].hours;
+  st.baseTechs=st.techs;st.baseHpd=st.hpd;st.baseRevDur=st.revDur;for(const t of S.tags)t.bStatus=t.status;
+  st.mode='track';st.baseN=n;log(first?'Lock baseline':'Re-baseline','Schedule','Baseline',n>1?'Baseline '+(n-1):'planning','Baseline '+n+' (last install '+dnToIso(fin)+')',why);
+  delete BCACHE[bKey(S)];setDirty(true);refresh(true);toast(`Baseline ${n} locked`)}
 /* ============ downloads ============ */
 function fileStamp(){const n=new Date();return n.toLocaleDateString('en-CA')+' '+String(n.getHours()).padStart(2,'0')+String(n.getMinutes()).padStart(2,'0')}
 let DLAPI=null;try{if(window.claude&&window.claude.use)window.claude.use('downloads').then(a=>{DLAPI=a}).catch(()=>{})}catch(e){}
@@ -899,6 +980,7 @@ function buildExcel(){
   const st=S.settings;const D='d',N='n',T='s';const sh=[];
   sh.push({name:'Read Me',cols:[{h:'Install Path',w:26},{h:'',w:110}],rows:[['Saved',stamp()],['Plan',st.plan],['Loaded from',FILENAME],['What this is','The current Install Path state. Load it back into Install Path to carry on: the Baseline columns still hold the original plan. The Tag Dates tab has every planned and actual date with task IDs for the Microsoft Project file.'],['Keep the layout','Keep tab names, headings, Row IDs, tags and part numbers as they are.'],['Changes',`${S.changes.length} change(s) listed on the Changes tab.`]]});
   const setv=[['Plan',st.plan,''],['Status date',dnToIso(st.statusDate),'Date the baseline actuals are good to'],['Technicians',st.techs,''],['Hours per technician per day',st.hpd,''],['Request to receipt (days)',st.lead,''],['Receipt before install (days)',st.buffer,''],['Review after install (days)',st.revGap,''],['Review team available',dnToIso(st.revFloor),''],['Restart',dnToIso(st.restart),''],['Paperwork hours per step',st.paper,''],['Look-ahead (days)',st.lookDays,''],['Review duration (days)',st.revDur,'Working days per Engineer Review'],['Baseline review duration (days)',st.baseRevDur,'Do not change'],['Baseline technicians',st.baseTechs,'Do not change'],['Baseline hours per day',st.baseHpd,'Do not change']];
+  setv.push(['Mode',st.mode==='track'?'Tracking':'Planning','Planning hides baseline comparisons until Lock baseline'],['Baseline version',st.baseN||0,'Number of times the baseline has been locked']);
   sh.push({name:'Settings',cols:[{h:'Setting',w:30,t:T},{h:'Value',w:14},{h:'Notes',w:40,t:T}],rows:setv});
   sh.push({name:'Milestones',cols:[{h:'ID',w:8,t:T},{h:'Milestone',w:34,t:T},{h:'Baseline Date',w:14,t:D},{h:'Date',w:14,t:D}],rows:Object.values(S.milestones).map(m=>[m.id,m.name,m.base,m.date])});
   sh.push({name:'Rows',cols:[{h:'Row ID',w:8,t:T},{h:'Row',w:44,t:T},{h:'SWBS',w:40,t:T},{h:'Type',w:13,t:T},{h:'Milestone',w:10,t:T},{h:'Baseline Start',w:13,t:D},{h:'Baseline Finish',w:13,t:D},{h:'Start',w:13,t:D},{h:'Finish',w:13,t:D},{h:'Comment',w:40,t:T}],rows:S.rows.map(r=>[r.id,r.name,r.swbs,r.type,r.ms,r.bStart,r.bFinish,C.rows[r.id].es,C.rows[r.id].ef,r.comment])});
@@ -1027,7 +1109,7 @@ async function buildSummaryPdf(){
 /* Microsoft Project export: Excel file for Project's import wizard (File > Open > .xlsx) */
 function rowPriorities(){const rem=S.rows.filter(r=>C.rows[r.id]&&!C.rows[r.id].done);rem.sort((a,b)=>C.rows[a.id].es-C.rows[b.id].es||a.name.localeCompare(b.name,undefined,{numeric:true}));
   const step=Math.max(1,Math.floor(900/Math.max(1,rem.length)));const P={};rem.forEach((r,i)=>P[r.id]=Math.max(100,1000-i*step));return P}
-function buildProjectXlsx(opt){opt=opt||{mode:'fixed'};const sched=opt.mode==='sched';const crew=Math.max(1,Math.round(opt.crew||1)),pool=Math.max(1,Math.round(opt.pool||S.settings.techs||1));const PRI=sched?rowPriorities():{};
+function buildProjectXlsx(opt){opt=opt||{mode:'fixed'};const sched=opt.mode==='sched';const crew0=Math.max(1,Math.round(opt.crew||1)),winCrew=opt.crewMode==='win',CREWS=[],pool=Math.max(1,Math.round(opt.pool||S.settings.techs||1));const PRI=sched?rowPriorities():{};
   const st=S.settings,D='d',T='s',N='n';const out=[];const add=o=>{out.push(o);return out.length};
   const rowOf={};S.rows.forEach(r=>rowOf[r.id]=r);
   add({name:'Milestones',lvl:1});
@@ -1047,7 +1129,7 @@ function buildProjectXlsx(opt){opt=opt||{mode:'fixed'};const sched=opt.mode==='s
       const recvId=add({name:'Receive',lvl:3,dur:'15 mins',pr:recvPred,ct:!recvDone&&t.fRecv!=null?'Start No Earlier Than':null,cd:!recvDone&&t.fRecv!=null?t.fRecv:null,af:recvA,as:recvA,pc:recvDone?100:0,t1:`${t.tag} Receive`,s1:c.recv,notes:factory?'Factory order: receipt is the delivery milestone':''});
       const dur=inst?(t.oStart!=null&&t.oFinish!=null?Math.max(1,wdBetween(t.oStart,t.oFinish)):1):Math.max(1,(C.rows[r.id]||{}).dur||1);
       const instPred=[`${recvId}FS+${st.buffer} edays`];if(r&&r.ms&&msId[r.ms])instPred.push(String(msId[r.ms]));
-      const hrs=hoursOf(S,t);const remH=inst?hrs:hrs*(1-(t.pct||0)/100);const sDur=Math.max(1,Math.ceil(remH/((st.hpd||8)*crew)-1e-9));const useRes=sched&&!inst&&hrs>0;
+      const hrs=hoursOf(S,t);const useRes=sched&&!inst&&hrs>0;const crew=winCrew&&r&&!inst?Math.min(pool,Math.max(1,Math.ceil(hrs/((st.hpd||8)*Math.max(1,(C.rows[r.id]||{}).dur||1))-1e-9))):crew0;if(useRes)CREWS.push(crew);
       const instId=add({name:'Install',lvl:3,dur:(sched&&!inst?Math.max(1,Math.ceil(hrs/((st.hpd||8)*crew)-1e-9)):dur)+'d',pr:instPred.join(','),ct:inst||sched?null:'Start No Earlier Than',cd:inst||sched?null:c.start,wk:useRes?r1(hrs)+'h':null,res:useRes?(crew>1?`Technicians[${crew*100}%]`:'Technicians'):null,pri:sched&&!inst&&r?PRI[r.id]:null,af:t.inst,as:inst?(t.ist!=null&&t.ist<=t.inst?t.ist:null):(t.pct>0?(t.ist??null):null),pc:inst?100:(t.pct||0),t1:`${t.tag} Install`,s1:inst?null:c.start,f1:c.finish,bs:inst?t.oStart:(r?r.bStart:null),bf:inst?t.oFinish:(r?r.bFinish:null),work:hoursOf(S,t)});
       add({name:'Engineer Reviewed',lvl:3,dur:st.revDur>0?st.revDur+'d':'0d',ms:st.revDur>0?'No':'Yes',f1:c.revEnd,pr:`${instId}FS+${st.revGap} edays,${revMs}`,ct:t.rev==null&&t.fRev!=null?'Start No Earlier Than':null,cd:t.rev==null&&t.fRev!=null?t.fRev:null,af:t.rev,as:t.rev,pc:t.rev!=null?100:(t.revPct||0),t1:`${t.tag} Engineer Reviewed`,s1:c.review});
     }
@@ -1058,7 +1140,7 @@ function buildProjectXlsx(opt){opt=opt||{mode:'fixed'};const sched=opt.mode==='s
     ['How to import','See “MS Project – Let Project Schedule – Step-by-Step Guide.pdf”. In short: File > Open > this .xlsx > Import Wizard > New map > As a new project > tick BOTH Tasks and Resources > Tasks from sheet “Tasks”, Resources from sheet “Resources” > ID (not mapped) > Finish. Then add the Calendar tab’s dates as non-working time, set the status date, reschedule uncompleted work after the status date, and run Level All with leveling order “Priority, Standard”.'],
     ['Links (the logic)',`Request → Receive: ${st.lead} calendar days. Receive → Install: ${st.buffer} calendar days. Install → Engineer Reviewed: ${st.revGap} calendar days, and not before “Milestone: Review team available”. Console installs also wait for their delivery milestone; factory consoles have no request step.`],
     ['Fixed dates kept',`Only real outside dates are fixed: the delivery milestones and the review team date (Start No Earlier Than), receipts with a supplier forecast, reviews with a forecast date${st.restart>st.statusDate?`, and no request before the ${fmtY(st.restart)} restart`:''}. Installs have no fixed dates; Project schedules them.`],
-    ['Work and technicians',`Each remaining install has Work = its install hours and Resource Names = Technicians${crew>1?` at ${crew*100}% (${crew} technicians per install)`:' (1 technician per install)'}; its Duration is the hours ÷ (${st.hpd||8} × ${crew}). The Resources tab creates “Technicians” with Max Units ${pool*100}% (${pool} people). Change Max Units in Project’s Resource Sheet to try another crew size.`],
+    ['Work and technicians',winCrew?`Each remaining install has Work = its install hours and Resource Names = Technicians at n00%, where n = technicians for that install, worked out from its Install Path window: hours ÷ (${st.hpd||8} × working days in the row’s window), rounded up, at most ${pool} (${CREWS.filter(x=>x>1).length} of ${CREWS.length} installs get more than 1; the most is ${Math.max(1,...CREWS)}). Its Duration is the hours ÷ (${st.hpd||8} × n).`:`Each remaining install has Work = its install hours and Resource Names = Technicians${crew0>1?` at ${crew0*100}% (${crew0} technicians per install)`:' (1 technician per install)'}; its Duration is the hours ÷ (${st.hpd||8} × ${crew0}). The Resources tab creates “Technicians” with Max Units ${pool*100}% (${pool} people). Change Max Units in Project’s Resource Sheet to try another crew size.`],
     ['Priority',`Levelling decides who goes first by the Priority field. Each row (system install window) gets its own number from its start date in Install Path, earliest = 1000, then down in steps of ${Math.max(1,Math.floor(900/Math.max(1,nP)))}; rows starting the same day go in SWBS number order. Every tag in a row shares its row’s number. Finished work and other tasks are 500 (Project’s default).`],
     ['Actuals','Finished steps carry their actual dates and 100% complete; installs in progress carry % complete and their start.'],
     ['Reference fields','Start1/Finish1 = Install Path’s current dates (for comparison only). Baseline Start/Finish = the Install Path Baseline install window. Number1 = install hours. Text1 = fixed task code for later updates and imports.'],
@@ -1152,12 +1234,13 @@ async function doProjectUpdate(){if(!S)return;try{const ok=await dlBlob(buildPro
 function doProjectExport(){if(!S)return;const card=document.getElementById('updCard');const tp=S.settings.techs||4;
   card.innerHTML=`<h2>Export to Microsoft Project</h2><p class="note">Pick how Project should treat the dates.</p>
    <label class="choice" style="align-items:flex-start;margin:10px 0"><input type="radio" name="xMode" value="sched" checked> <span><b>Let Project schedule</b> (to build the real plan in Project)<br><span class="note">Links, work hours and a Technicians pool; no fixed install dates. Project works out durations and the finish date, and levelling spreads the installs by priority (from each row’s start date here).</span></span></label>
-   <div class="row" id="xOpts" style="gap:14px;flex-wrap:wrap;margin-left:28px"><label>Technicians in the pool <input type="number" id="xPool" min="1" step="1" value="${tp}" style="width:5em"></label><label>Technicians per install <input type="number" id="xCrew" min="1" step="1" value="1" style="width:5em"></label></div>
+   <div class="row" id="xOpts" style="gap:14px;flex-wrap:wrap;margin-left:28px"><label>Technicians in the pool <input type="number" id="xPool" min="1" step="1" value="${tp}" style="width:5em"></label></div>
+   <div class="row" id="xOpts2" style="gap:6px;flex-direction:column;align-items:flex-start;margin-left:28px"><span class="note">Technicians per install</span><label class="choice"><input type="radio" name="xCrewM" value="same" checked> Same for every install <input type="number" id="xCrew" min="1" step="1" value="1" style="width:5em"></label><label class="choice" style="align-items:flex-start"><input type="radio" name="xCrewM" value="win"> <span>From the Install Path windows<br><span class="note">hours ÷ (hours per day × working days in the row’s window), rounded up, at most the pool. E.g. 1,000 h in a 25-day window = 5 technicians.</span></span></label></div>
    <label class="choice" style="align-items:flex-start;margin:10px 0"><input type="radio" name="xMode" value="fixed"> <span><b>Fixed dates</b> (mirror Install Path exactly)<br><span class="note">Every install held at its Install Path start; no resources. Project shows the same dates as here.</span></span></label>
    <p class="note">Your coworker’s step-by-step guide is “MS Project – Let Project Schedule – Step-by-Step Guide.pdf”.</p>
    <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn" id="xGo">Export</button></div>`;
-  const sync=()=>{card.querySelector('#xOpts').style.opacity=card.querySelector('input[name=xMode]:checked').value==='sched'?'':'.4'};card.querySelectorAll('input[name=xMode]').forEach(x=>x.onchange=sync);sync();
-  card.querySelector('#xGo').onclick=async()=>{const mode=card.querySelector('input[name=xMode]:checked').value;const opt={mode,pool:+card.querySelector('#xPool').value||tp,crew:+card.querySelector('#xCrew').value||1};document.getElementById('mUpd').classList.remove('on');
+  const sync=()=>{const o=card.querySelector('input[name=xMode]:checked').value==='sched'?'':'.4';card.querySelector('#xOpts').style.opacity=o;card.querySelector('#xOpts2').style.opacity=o};card.querySelectorAll('input[name=xMode]').forEach(x=>x.onchange=sync);sync();
+  card.querySelector('#xGo').onclick=async()=>{const mode=card.querySelector('input[name=xMode]:checked').value;const opt={mode,pool:+card.querySelector('#xPool').value||tp,crew:+card.querySelector('#xCrew').value||1,crewMode:card.querySelector('input[name=xCrewM]:checked').value};document.getElementById('mUpd').classList.remove('on');
     try{const ok=await dlBlob(buildProjectXlsx(opt),`Install Path - MS Project ${mode==='sched'?'Schedule':'Fixed Dates'} - ${fileStamp()}.xlsx`);if(ok!==false)toast('Microsoft Project file ready')}catch(e){console.error(e);toast('Export failed: '+e.message)}};
   document.getElementById('mUpd').classList.add('on')}
 let DIRTY=false,LASTSAVE='';
@@ -1221,12 +1304,13 @@ function theme(t){if(t)document.documentElement.setAttribute('data-theme',t);try
   document.getElementById('tabs').onclick=e=>{const b=e.target.closest('.tab');if(!b)return;VIEW=b.dataset.v;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+VIEW));if(VIEW==='sched')renderCharts()};
   const grid=document.getElementById('grid');
   grid.addEventListener('change',onGridChange);
-  grid.addEventListener('click',e=>{const ex=e.target.closest('.exp');if(ex){const id=ex.closest('tr').dataset.id;OPEN.has(id)?OPEN.delete(id):OPEN.add(id);renderGrid();return}
+  grid.addEventListener('click',e=>{const tg=e.target.closest('.toG');if(tg){showInSchedule(tg.closest('tr').dataset.id);return}const ex=e.target.closest('.exp');if(ex){const id=ex.closest('tr').dataset.id;OPEN.has(id)?OPEN.delete(id):OPEN.add(id);renderGrid();return}
     const u=e.target.closest('.iUpd');if(u){const tg=u.closest('tr').dataset.tag;const t=S.tags.find(x=>x.tag===tg);const c=C.tags[tg]||{};
       const k=t.status==='Installed'?'Engineer Review':t.recv!=null?'Install':t.req!=null||c.reqK==='none'?'Receipt':'Request';
       openUpdate({kind:k,date:k==='Request'?c.req:k==='Receipt'?c.recv:k==='Install'?c.finish:c.review,tags:[tg],row:t.row,label:tg,sub:t.name},true)}});
   const gantt=document.getElementById('gantt');gantt.addEventListener('pointerdown',onDown);
-  gantt.addEventListener('click',e=>{const l=e.target.closest('.grow2 .glab');if(!l)return;const id=l.parentElement.dataset.id;if(!id)return;openRowUpdate(id)});window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
+  gantt.addEventListener('click',e=>{if(onDropClick(e))return;const l=e.target.closest('.grow2 .glab')||e.target.closest('.grow2 .gbar.donebar');if(!l)return;const id=l.closest('.grow2').dataset.id;if(!id)return;toggleDrop(id)});gantt.addEventListener('change',onDropChange);
+  document.getElementById('baseBtn').onclick=openBaseline;window.addEventListener('pointermove',onMove);window.addEventListener('pointerup',onUp);
   document.getElementById('partsT').addEventListener('change',e=>{if(e.target.classList.contains('iPart'))setPart(e.target.dataset.part,e.target.value)});
   document.getElementById('q').addEventListener('input',()=>{renderGantt();renderGrid()});
   const so=document.getElementById('showOrig');try{so.checked=localStorage.getItem('installpath.showOrig')==='1'}catch(e){}
