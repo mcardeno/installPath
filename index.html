@@ -119,6 +119,10 @@ tr.detail>td{background:var(--faint);padding:10px 14px}
 #drop.over{background:var(--ctlbg)}
 #app{display:none}
 /* modal */
+.menuwrap{position:relative;flex:0 0 auto}
+.menu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;background:var(--bg);border:2px solid var(--ink);border-radius:12px;padding:6px;min-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.menu button{display:block;width:100%;text-align:left;background:transparent;border:none;color:var(--ctl);font-weight:700;padding:10px 12px;border-radius:8px;cursor:pointer;min-height:44px;font:inherit;font-weight:700}
+.menu button:hover,.menu button:focus-visible{background:var(--ctlbg)}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
 .modal.on{display:flex}
 .card{background:var(--bg);border:2px solid var(--ink);border-radius:14px;max-width:640px;width:100%;max-height:90vh;overflow:auto;padding:20px 22px}
@@ -210,7 +214,13 @@ header .btn{flex:0 0 auto}
   <button class="btn" id="load">Open…</button>
   <button class="btn" id="saveas">Save as…<span class="dirty" id="dirty" hidden title="Unsaved changes"> ●</span></button>
   <button class="btn" id="dl">Download…</button>
-  <button class="btn" id="msp" title="Excel file for the Microsoft Project import wizard">Microsoft Project Export</button>
+  <div class="menuwrap"><button class="btn" id="mspBtn" aria-haspopup="true" aria-expanded="false">Microsoft Project ▾</button>
+    <div class="menu" id="mspMenu" hidden>
+      <button id="msp" title="Excel file for the Microsoft Project import wizard">Export full schedule (new Project file)</button>
+      <button id="mspUpd" title="Actuals and comments only, to merge into the existing Project file">Update export (actuals and comments)</button>
+      <button id="mspImp" title="Read a file exported from Microsoft Project">Import from Project…</button>
+    </div></div>
+  <input type="file" id="mspFile" accept=".xlsx" hidden>
   <button class="btn icon" id="theme" title="Day / night">☀︎ / ☾</button>
 </header>
 <div class="bar2">
@@ -280,7 +290,7 @@ header .btn{flex:0 0 auto}
 
 <script>
 "use strict";
-const BUILD="Rev 0.3";
+const BUILD="Rev 0.4";
 /* ============ dates & calendar ============ */
 const DAY=86400000;
 const isoToDn=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));return m?Date.UTC(+m[1],m[2]-1,+m[3])/DAY:null};
@@ -410,7 +420,7 @@ function parseWorkbook(sh){
   const milestones={};for(const r of rowsOf(sh.Milestones)){const id=toStr(r.ID);if(!id)continue;milestones[id]={id,name:toStr(r.Milestone),base:toDn(r['Baseline Date']),date:toDn(r.Date)??toDn(r['Baseline Date'])}}
   const rows=rowsOf(sh.Rows).filter(r=>toStr(r['Row ID'])).map(r=>({id:toStr(r['Row ID']),name:toStr(r.Row),swbs:toStr(r.SWBS),type:toStr(r.Type),ms:toStr(r.Milestone),bStart:toDn(r['Baseline Start']),bFinish:toDn(r['Baseline Finish']),start:toDn(r.Start)??toDn(r['Baseline Start']),finish:toDn(r.Finish)??toDn(r['Baseline Finish']),comment:toStr(r.Comment)}));
   const normS=s=>{s=toStr(s);if(/^ins(t)?alled$/i.test(s))return'Installed';const f=STATUSES.find(x=>x.toLowerCase()===s.toLowerCase());return f||'Not Started'};
-  const tags=rowsOf(sh.Tags).filter(r=>toStr(r.Tag)).map((r,i)=>({tid:toStr(r['Task ID'])||('T'+String(i+1).padStart(3,'0')),tag:toStr(r.Tag),name:toStr(r['Tag Name']),swbs:toStr(r.SWBS),phase:toNum(r.Phase),part:toStr(r['Part Number']),row:toStr(r['Row ID']),bStatus:normS(r['Baseline Status']??r.Status),status:normS(r.Status),req:toDn(r['Requested (Actual)']),recv:toDn(r['Received (Actual)']),inst:toDn(r['Installed (Actual)']),rev:toDn(r['Engineer Reviewed (Actual)']),fReq:toDn(r['Requested (Forecast)']),fRecv:toDn(r['Received (Forecast)']),fRev:toDn(r['Engineer Reviewed (Forecast)']),oReq:toDn(r['Original Planned Request']),oStart:toDn(r['Original Planned Start']),oFinish:toDn(r['Original Planned Finish']),comment:toStr(r.Comment)}));
+  const tags=rowsOf(sh.Tags).filter(r=>toStr(r.Tag)).map((r,i)=>({tid:toStr(r['Task ID'])||('T'+String(i+1).padStart(3,'0')),tag:toStr(r.Tag),name:toStr(r['Tag Name']),swbs:toStr(r.SWBS),phase:toNum(r.Phase),part:toStr(r['Part Number']),row:toStr(r['Row ID']),bStatus:normS(r['Baseline Status']??r.Status),status:normS(r.Status),req:toDn(r['Requested (Actual)']),recv:toDn(r['Received (Actual)']),inst:toDn(r['Installed (Actual)']),rev:toDn(r['Engineer Reviewed (Actual)']),fReq:toDn(r['Requested (Forecast)']),fRecv:toDn(r['Received (Forecast)']),fRev:toDn(r['Engineer Reviewed (Forecast)']),oReq:toDn(r['Original Planned Request']),oStart:toDn(r['Original Planned Start']),oFinish:toDn(r['Original Planned Finish']),comment:toStr(r.Comment),ist:toDn(r['Install Started (Actual)']),pct:Math.max(0,Math.min(99,toNum(r['Install % Complete'])||0)),revPct:Math.max(0,Math.min(99,toNum(r['Review % Complete'])||0)),ah:toNum(r['Actual Hours'])}));
   const parts={};for(const r of rowsOf(sh.Parts)){const pn=toStr(r['Part Number']);if(!pn)continue;const b=toNum(r['Baseline Hours'])??toNum(r.Hours)??0;parts[pn]={pn,bHours:b,hours:toNum(r.Hours)??b}}
   const cal=rowsOf(sh.Calendar).map(r=>({dn:toDn(r.Date),reason:toStr(r.Reason)})).filter(c=>c.dn!=null);
   const changes=sh.Changes?rowsOf(sh.Changes).map(r=>({when:toStr(r.When),action:toStr(r.Action),item:toStr(r.Item),field:toStr(r.Field),from:toStr(r.From),to:toStr(r.To),comment:toStr(r.Comment)})):[];
@@ -428,14 +438,14 @@ function makeBaseline(L){
   for(const k in B.milestones)B.milestones[k].date=B.milestones[k].base;
   for(const r of B.rows){r.start=r.bStart;r.finish=r.bFinish}
   for(const k in B.parts)B.parts[k].hours=B.parts[k].bHours;
-  for(const t of B.tags){t.status=t.bStatus;t.fReq=t.fRecv=t.fRev=null;for(const f of['req','recv','rev'])if(t[f]!=null&&t[f]>sd)t[f]=null;if(t.status!=='Installed')t.inst=null}
+  for(const t of B.tags){t.status=t.bStatus;t.fReq=t.fRecv=t.fRev=null;t.pct=0;t.revPct=0;t.ist=null;for(const f of['req','recv','rev'])if(t[f]!=null&&t[f]>sd)t[f]=null;if(t.status!=='Installed')t.inst=null}
   return B;
 }
 
 /* ============ engine ============ */
 const hoursOf=(St,t)=>(St.parts[t.part]||{}).hours||0;
 function compute(St){
-  const st=St.settings,ms=St.milestones;const R={rows:{},tags:{},load:new Map(),paper:new Map(),install:[],remHours:0,remTags:0};
+  const st=St.settings,ms=St.milestones;const R={rows:{},tags:{},load:new Map(),paper:new Map(),install:[],earned:[],remHours:0,remTags:0};
   const byRow={};for(const t of St.tags)(byRow[t.row]??=[]).push(t);
   const add=(m,d,h)=>{if(d==null||!isFinite(d))return;m.set(d,(m.get(d)||0)+h)};
   for(const r of St.rows){
@@ -452,17 +462,17 @@ function compute(St){
     let es=nextWork(r.start),ef=r.finish,pushed=false;
     if(hold!=null){const h=nextWork(hold);if(h>es){es=h;ef=addWork(es,dur);pushed=true}}
     if(ef<es)ef=es;
-    let hrs=0,rv=null;
+    let hrs=0,rv=null,anyPct=false;
     for(const t of rem){const p=pre[t.tag];
       if(p.recvK==='jit'){let recv=prevWork(es-st.buffer),req=prevWork(recv-st.lead);if(req<st.restart){req=st.restart;recv=nextWork(req+st.lead)}p.req=req;p.recv=recv}
       const rev=t.rev??t.fRev??nextWork(Math.max(st.revFloor,ef+st.revGap));
       R.tags[t.tag]={...p,start:es,finish:ef,review:rev,revEnd:t.rev??(st.revDur>0?addWork(rev,st.revDur):rev),revK:t.rev!=null?'actual':t.fRev!=null?'forecast':'plan',row:r.id};
-      const h=hoursOf(St,t);hrs+=h;rv=rv==null?rev:Math.max(rv,rev);
+      const h0=hoursOf(St,t),pc=(t.pct||0)/100,h=h0*(1-pc);if(pc>0){R.earned.push([h0*pc,t]);anyPct=true}hrs+=h;rv=rv==null?rev:Math.max(rv,rev);
       if(p.reqK==='plan'||p.reqK==='forecast')add(R.paper,p.req,st.paper);
       if(p.recvK!=='actual')add(R.paper,p.recv,st.paper);
     }
-    if(hrs>0){const days=[];for(let d=es;d<=ef;d++)if(isWork(d))days.push(d);if(!days.length)days.push(es);const per=hrs/days.length;for(const d of days)add(R.load,d,per)}
-    R.rows[r.id]={es,ef,dur,pushed,why,rem:rem.length,all:ts.length,hrs,review:rv,done:rem.length===0&&ts.length>0};
+    if(hrs>0){const days=[];const d0=anyPct?Math.max(es,nextWork(st.statusDate)):es;for(let d=Math.min(d0,ef);d<=ef;d++)if(isWork(d))days.push(d);if(!days.length)days.push(es);const per=hrs/days.length;for(const d of days)add(R.load,d,per)}
+    const rowH0=rem.reduce((a,t)=>a+hoursOf(St,t),0);R.rows[r.id]={es,ef,dur,pushed,why,rem:rem.length,all:ts.length,hrs,review:rv,done:rem.length===0&&ts.length>0,pct:rowH0>0&&anyPct?Math.round((1-hrs/rowH0)*100):0};
     R.remHours+=hrs;R.remTags+=rem.length;
   }
   for(const t of St.tags)if(t.status==='Installed'){const rv0=t.rev??t.fRev??nextWork(Math.max(st.revFloor,t.inst+st.revGap));R.tags[t.tag]={req:t.req,reqK:'actual',recv:t.recv,recvK:'actual',start:null,finish:t.inst,review:rv0,revEnd:t.rev??(st.revDur>0?addWork(rv0,st.revDur):rv0),revK:t.rev!=null?'actual':t.fRev!=null?'forecast':'plan',row:t.row,installed:true};R.install.push([t.inst,hoursOf(St,t),t])}
@@ -563,7 +573,7 @@ function renderGrid(){
     if(!rowMatches(r,q,ts))continue;
     const delta=c.ef-r.bFinish;const done=c.done;
     h+=`<tr class="grow${done?' done':''}" data-id="${r.id}"><td><button class="exp" aria-label="Show tags">${OPEN.has(r.id)?'−':'+'}</button></td>
-      <td class="rname">${esc(r.name)}${r.ms?`<span class="tag-ms">${esc(r.ms)}</span>`:''}${(()=>{const bits=[];if(r.type!=='System')bits.push(esc(r.swbs.replace(/\s*\(.*\)$/,'')));if(c.pushed)bits.push(`<span class="held">held by ${esc(c.why)}</span>`);if(r.comment)bits.push(`“${esc(r.comment)}”`);return bits.length?`<div class="sub">${bits.join(' · ')}</div>`:''})()}</td>
+      <td class="rname">${esc(r.name)}${r.ms?`<span class="tag-ms">${esc(r.ms)}</span>`:''}${(()=>{const bits=[];if(r.type!=='System')bits.push(esc(r.swbs.replace(/\s*\(.*\)$/,'')));if(c.pct>0)bits.push(`<b>${c.pct}% done</b>`);if(c.pushed)bits.push(`<span class="held">held by ${esc(c.why)}</span>`);if(r.comment)bits.push(`“${esc(r.comment)}”`);return bits.length?`<div class="sub">${bits.join(' · ')}</div>`:''})()}</td>
       <td class="num">${c.rem}${c.rem!==c.all?`<span class="sub">/${c.all}</span>`:''}</td><td class="num">${nf(c.hrs)}</td>
       <td><input type="date" class="iStart" value="${dnToIso(c.es)}" ${done?'disabled':''}></td>
       <td class="num"><input type="number" class="iDur" min="1" value="${c.dur}" ${done?'disabled':''}></td>
@@ -602,7 +612,7 @@ function detailHtml(r,ts){
   let h=`<table class="inner"><thead><tr><th>Tag</th><th>Name</th><th>Status</th><th>Part</th><th class="num">Hours</th><th>Request</th><th>Receipt</th><th>Eng. review</th><th>Comment</th><th></th></tr></thead><tbody>`;
   for(const t of ts){const c=C.tags[t.tag]||{};
     const dcell=(d,k)=>d==null?(k==='none'?'<span class="kind">factory</span>':'—'):`${fmt(d)} <span class="kind${k==='actual'?' act':''}">${kindTxt(k)}</span>`;
-    h+=`<tr data-tag="${esc(t.tag)}"><td><b>${esc(t.tag)}</b></td><td>${esc(t.name)}</td><td><span class="pill ${t.status.replace(' ','')}">${t.status}</span>${t.status==='Installed'?' '+fmt(t.inst):''}</td>
+    h+=`<tr data-tag="${esc(t.tag)}"><td><b>${esc(t.tag)}</b></td><td>${esc(t.name)}</td><td><span class="pill ${t.status.replace(' ','')}">${t.status}</span>${t.status==='Installed'?' '+fmt(t.inst)+(t.ah!=null?` <span class="kind">${r1(t.ah)} h actual</span>`:''):t.pct?` <b>${t.pct}%</b>`:''}${t.revPct&&t.rev==null?` <span class="kind">review ${t.revPct}%</span>`:''}</td>
       <td>${esc(t.part)}${cnt[t.part]>1?` <span class="kind">×${cnt[t.part]} tags</span>`:''}</td>
       <td class="num"><input type="number" class="iHrs" min="0" step="0.5" value="${hoursOf(S,t)}" data-part="${esc(t.part)}"></td>
       <td>${dcell(c.req,c.reqK)}</td><td>${dcell(c.recv,c.recvK)}</td><td>${dcell(c.review,c.revK)}</td><td class="sub">${esc(t.comment)}</td>
@@ -621,13 +631,14 @@ function listHtml(arr,late){
 let LISTS={A:[],L:[]};
 function renderLists(){LISTS.A=aheadItems();LISTS.L=C.items.filter(i=>i.date<TODAY);
   document.getElementById('aheadList').innerHTML=listHtml(LISTS.A,false);document.getElementById('lateList').innerHTML=listHtml(LISTS.L,true)}
+function actualOf(pn){const ts=S.tags.filter(t=>t.part===pn&&t.status==='Installed'&&t.ah!=null);return{n:ts.length,avg:ts.length?ts.reduce((a,t)=>a+t.ah,0)/ts.length:0}}
 function renderParts(){
   const q=document.getElementById('pq').value.trim().toLowerCase();const by={};for(const t of S.tags)(by[t.part]??=[]).push(t);
-  let h=`<thead><tr><th>Part number</th><th>Tags with this part</th><th class="num">Baseline hours</th><th class="num">Hours each</th><th class="num">Change</th><th class="num">Total hours</th></tr></thead><tbody>`;
+  let h=`<thead><tr><th>Part number</th><th>Tags with this part</th><th class="num">Baseline hours</th><th class="num">Hours each</th><th class="num">Change</th><th class="num">Total hours</th><th class="num">Actual (average)</th></tr></thead><tbody>`;
   for(const p of Object.values(S.parts).sort((a,b)=>a.pn.localeCompare(b.pn))){const ts=by[p.pn]||[];
     if(q&&!(p.pn.toLowerCase().includes(q)||ts.some(t=>t.tag.toLowerCase().includes(q)||t.name.toLowerCase().includes(q))))continue;
     const d=p.hours-p.bHours;
-    h+=`<tr><td><b>${esc(p.pn)}</b></td><td class="sub">${ts.map(t=>esc(t.tag)+' '+esc(t.name)+(t.status==='Installed'?' (installed)':'')).join('<br>')}</td><td class="num">${p.bHours}</td><td class="num"><input type="number" class="iPart" min="0" step="0.5" data-part="${esc(p.pn)}" value="${p.hours}"></td><td class="num"><span class="delta ${d>0?'up':d<0?'dn':''}">${d?((d>0?'+':'−')+Math.abs(r1(d))):''}</span></td><td class="num">${nf(p.hours*ts.length)}</td></tr>`}
+    h+=`<tr><td><b>${esc(p.pn)}</b></td><td class="sub">${ts.map(t=>esc(t.tag)+' '+esc(t.name)+(t.status==='Installed'?' (installed)':'')).join('<br>')}</td><td class="num">${p.bHours}</td><td class="num"><input type="number" class="iPart" min="0" step="0.5" data-part="${esc(p.pn)}" value="${p.hours}"></td><td class="num"><span class="delta ${d>0?'up':d<0?'dn':''}">${d?((d>0?'+':'−')+Math.abs(r1(d))):''}</span></td><td class="num">${nf(p.hours*ts.length)}</td><td class="num">${(a=>a.n?`${r1(a.avg)} h <span class="kind">${a.n} tag${a.n>1?'s':''} · ${(a.avg/Math.max(.01,p.hours)).toFixed(2)}×</span>`:'—')(actualOf(p.pn))}</td></tr>`}
   document.getElementById('partsT').innerHTML=h+'</tbody>';
 }
 function renderChanges(){
@@ -651,6 +662,7 @@ function cumul(x0,x1,R,St,mode,orig){ // mode 'hrs'|'tags'; orig: done tags on t
   for(const[d,h,t]of R.install){
     if(orig&&t&&t.oStart!=null&&t.oFinish!=null){if(mode==='hrs'){const ds=[];for(let x=t.oStart;x<=t.oFinish;x++)if(isWork(x))ds.push(x);if(!ds.length)ds.push(t.oFinish);ds.forEach(x=>addp(x,h/ds.length))}else addp(t.oFinish,1);continue}
     const k=Math.max(d,x0);inst.set(k,(inst.get(k)||0)+(mode==='hrs'?h:1))}
+  if(mode==='hrs'&&R.earned&&R.earned.length){const k=Math.max(St.settings.statusDate,x0);for(const[h]of R.earned)inst.set(k,(inst.get(k)||0)+h)}
 if(mode==='hrs'){for(const[d,h]of R.load)plan.set(d,(plan.get(d)||0)+h)}else{for(const t of St.tags)if(t.status!=='Installed'){const f=R.tags[t.tag]?.finish;if(f!=null)plan.set(f,(plan.get(f)||0)+1)}}
   let a=0,p=0;for(let d=x0;d<=x1;d++){a+=inst.get(d)||0;p+=plan.get(d)||0;out.push([d,a,a+p])}
   return out;
@@ -813,6 +825,7 @@ function openUpdate(item,fromTag){
    ${fromTag?`<div class="row"><label>Step</label><select id="uKind">${kinds.map(k=>`<option ${k===item.kind?'selected':''}>${k}</option>`).join('')}</select></div>`:`<p><b>${item.kind}</b> · planned ${fmtY(item.date)}</p>`}
    ${multi?`<div class="row"><label>Tags</label></div><div class="taglist">${item.tags.map(t=>`<label><input type="checkbox" class="uTag" value="${esc(t)}" checked> ${esc(t)} ${esc((S.tags.find(x=>x.tag===t)||{}).name||'')}</label>`).join('')}</div>`:''}
    <div class="row"><label class="choice"><input type="radio" name="uAct" value="done" checked> <span id="uDoneTxt">${doneTxt[item.kind]}</span> on</label><input type="date" id="uDone" value="${dnToIso(isFinite(item.date)?Math.min(TODAY,Math.max(item.date,TODAY-60)):TODAY)}"></div>
+   <div class="row" id="uPctRow"><label class="choice"><input type="radio" name="uAct" value="pct"> Progress so far</label><input type="number" id="uPct" min="0" max="99" step="5" style="width:6em" value="${(k0=>k0==='Engineer Review'?(t0?.revPct||''):(t0?.pct||''))(item.kind)}"> % complete</div>
    <div class="row"><label class="choice"><input type="radio" name="uAct" value="fc"> Reforecast to</label><input type="date" id="uFc" value="${dnToIso(isFinite(item.date)?item.date:TODAY)}"></div>
    <div class="row" id="uHow" style="display:none"><label class="choice"><input type="radio" name="uMv" value="shift" checked> Shift the whole window</label><label class="choice"><input type="radio" name="uMv" value="stretch"> Keep start, move finish</label></div>
    <div class="row"><label class="choice"><input type="radio" name="uAct" value="note"> Comment only</label></div>
@@ -820,9 +833,9 @@ function openUpdate(item,fromTag){
    <p class="note" id="uHint"></p><p class="err" id="uErr"></p>
    <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn" id="uSave">Save</button></div>`;
   const sync=()=>{const k=fromTag?card.querySelector('#uKind').value:item.kind;card.querySelector('#uDoneTxt').textContent=doneTxt[k];const fc=card.querySelector('input[name=uAct]:checked').value==='fc';
-    card.querySelector('#uHow').style.display=fc&&k==='Install'?'flex':'none';
+    card.querySelector('#uHow').style.display=fc&&k==='Install'?'flex':'none';const canPct=k==='Install'||k==='Engineer Review';card.querySelector('#uPctRow').style.display=canPct?'flex':'none';if(!canPct&&card.querySelector('input[name=uAct]:checked').value==='pct')card.querySelector('input[name=uAct][value=done]').checked=true;
     const rows=item.row?rowById(item.row):null;const nTags=rows?S.tags.filter(t=>t.row===rows.id&&t.status!=='Installed').length:0;
-    card.querySelector('#uHint').textContent=k==='Install'&&fc?`Reforecasting the install moves the whole row${nTags>1?` (${nTags} tags)`:''}; loading and charts update.`:k==='Request'&&fc?'Receipt follows 14 days later; a later receipt holds the install back.':k==='Receipt'&&fc?'A receipt later than the install start holds the install back.':''};
+    card.querySelector('#uHint').textContent=k==='Install'&&fc?`Reforecasting the install moves the whole row${nTags>1?` (${nTags} tags)`:''}; loading and charts update.`:card.querySelector('input[name=uAct]:checked').value==='pct'?(k==='Install'?'Type how much of the install is done (any number, e.g. 40). The remaining hours spread over the rest of the window, and the S-curve counts the done part. When it’s finished, use Installed on.':'Type how much of the review is done.'):k==='Request'&&fc?'Receipt follows 14 days later; a later receipt holds the install back.':k==='Receipt'&&fc?'A receipt later than the install start holds the install back.':''};
   card.querySelectorAll('input,select').forEach(x=>x.addEventListener('change',sync));sync();
   document.getElementById('mUpd').classList.add('on');
 }
@@ -837,8 +850,13 @@ function saveUpdate(){
     commit(()=>{for(const t of tags){
       if(kind==='Request'){log('Status',t.tag,'Requested (actual)',dnToIso(t.req),dnToIso(d),com);t.req=d;if(t.status==='Not Started')t.status='Requested';t.fReq=null}
       else if(kind==='Receipt'){log('Status',t.tag,'Received (actual)',dnToIso(t.recv),dnToIso(d),com);t.recv=d;if(t.status!=='Installed')t.status='WIP';t.fRecv=null}
-      else if(kind==='Install'){log('Status',t.tag,'Installed (actual)',t.status,`Installed ${dnToIso(d)}`,com);t.inst=d;t.status='Installed'}
-      else{log('Status',t.tag,'Engineer reviewed (actual)',dnToIso(t.rev),dnToIso(d),com);t.rev=d;t.fRev=null}
+      else if(kind==='Install'){log('Status',t.tag,'Installed (actual)',t.status,`Installed ${dnToIso(d)}`,com);t.inst=d;t.status='Installed';t.pct=0;if(t.ist!=null&&t.ist>d)t.ist=d}
+      else{log('Status',t.tag,'Engineer reviewed (actual)',dnToIso(t.rev),dnToIso(d),com);t.rev=d;t.fRev=null;t.revPct=0}
+      if(com)t.comment=com}});
+    if(kind==='Install'){document.getElementById('mUpd').classList.remove('on');askEffort(tags);return}
+  }else if(act==='pct'){const v=card.querySelector('#uPct').value;if(v==='')return err('Type the % complete.');const p=Math.round(+v);if(!(p>=0))return err('Type a number from 0 to 99.');if(p>=100)return err('For 100%, choose the done option and its date instead.');
+    commit(()=>{for(const t of tags){if(kind==='Install'){if(t.status==='Installed')continue;log('Progress',t.tag,'Install % complete',t.pct||0,p,com);t.pct=p;if(p>0){if(t.ist==null)t.ist=Math.min(TODAY,Math.max(C.tags[t.tag]?.start??TODAY,TODAY-365));if(t.status!=='Installed')t.status='WIP'}}
+      else{if(t.rev!=null)continue;log('Progress',t.tag,'Review % complete',t.revPct||0,p,com);t.revPct=p}
       if(com)t.comment=com}});
   }else if(act==='fc'){const d=isoToDn(card.querySelector('#uFc').value);if(d==null)return err('Enter the new forecast date.');
     if(kind==='Install'){const r=rowById(tags[0].row);if(!r)return err('This tag has no schedule row.');const c=C.rows[r.id];const how=card.querySelector('input[name=uMv]:checked').value;
@@ -865,10 +883,10 @@ function buildExcel(){
   sh.push({name:'Settings',cols:[{h:'Setting',w:30,t:T},{h:'Value',w:14},{h:'Notes',w:40,t:T}],rows:setv});
   sh.push({name:'Milestones',cols:[{h:'ID',w:8,t:T},{h:'Milestone',w:34,t:T},{h:'Baseline Date',w:14,t:D},{h:'Date',w:14,t:D}],rows:Object.values(S.milestones).map(m=>[m.id,m.name,m.base,m.date])});
   sh.push({name:'Rows',cols:[{h:'Row ID',w:8,t:T},{h:'Row',w:44,t:T},{h:'SWBS',w:40,t:T},{h:'Type',w:13,t:T},{h:'Milestone',w:10,t:T},{h:'Baseline Start',w:13,t:D},{h:'Baseline Finish',w:13,t:D},{h:'Start',w:13,t:D},{h:'Finish',w:13,t:D},{h:'Comment',w:40,t:T}],rows:S.rows.map(r=>[r.id,r.name,r.swbs,r.type,r.ms,r.bStart,r.bFinish,C.rows[r.id].es,C.rows[r.id].ef,r.comment])});
-  sh.push({name:'Tags',cols:[{h:'Task ID',w:8,t:T},{h:'Tag',w:15,t:T},{h:'Tag Name',w:38,t:T},{h:'SWBS',w:34,t:T},{h:'Phase',w:6,t:N},{h:'Part Number',w:13,t:T},{h:'Row ID',w:8,t:T},{h:'Baseline Status',w:12,t:T},{h:'Status',w:12,t:T},{h:'Requested (Actual)',w:12,t:D},{h:'Received (Actual)',w:12,t:D},{h:'Installed (Actual)',w:12,t:D},{h:'Engineer Reviewed (Actual)',w:12,t:D},{h:'Requested (Forecast)',w:12,t:D},{h:'Received (Forecast)',w:12,t:D},{h:'Engineer Reviewed (Forecast)',w:12,t:D},{h:'Original Planned Request',w:12,t:D},{h:'Original Planned Start',w:12,t:D},{h:'Original Planned Finish',w:12,t:D},{h:'Comment',w:40,t:T}],
-    rows:S.tags.map(t=>[t.tid,t.tag,t.name,t.swbs,t.phase,t.part,t.row,t.bStatus,t.status,t.req,t.recv,t.inst,t.rev,t.fReq,t.fRecv,t.fRev,t.oReq,t.oStart,t.oFinish,t.comment])});
+  sh.push({name:'Tags',cols:[{h:'Task ID',w:8,t:T},{h:'Tag',w:15,t:T},{h:'Tag Name',w:38,t:T},{h:'SWBS',w:34,t:T},{h:'Phase',w:6,t:N},{h:'Part Number',w:13,t:T},{h:'Row ID',w:8,t:T},{h:'Baseline Status',w:12,t:T},{h:'Status',w:12,t:T},{h:'Requested (Actual)',w:12,t:D},{h:'Received (Actual)',w:12,t:D},{h:'Installed (Actual)',w:12,t:D},{h:'Engineer Reviewed (Actual)',w:12,t:D},{h:'Requested (Forecast)',w:12,t:D},{h:'Received (Forecast)',w:12,t:D},{h:'Engineer Reviewed (Forecast)',w:12,t:D},{h:'Original Planned Request',w:12,t:D},{h:'Original Planned Start',w:12,t:D},{h:'Original Planned Finish',w:12,t:D},{h:'Comment',w:40,t:T},{h:'Install Started (Actual)',w:12,t:D},{h:'Install % Complete',w:10,t:N},{h:'Review % Complete',w:10,t:N},{h:'Actual Hours',w:10,t:N}],
+    rows:S.tags.map(t=>[t.tid,t.tag,t.name,t.swbs,t.phase,t.part,t.row,t.bStatus,t.status,t.req,t.recv,t.inst,t.rev,t.fReq,t.fRecv,t.fRev,t.oReq,t.oStart,t.oFinish,t.comment,t.ist??null,t.status==='Installed'?null:(t.pct||null),t.rev!=null?null:(t.revPct||null),t.ah??null])});
   const cnt={};S.tags.forEach(t=>cnt[t.part]=(cnt[t.part]||0)+1);
-  sh.push({name:'Parts',cols:[{h:'Part Number',w:14,t:T},{h:'Baseline Hours',w:12,t:N},{h:'Hours',w:10,t:N},{h:'Tags',w:7,t:N}],rows:Object.values(S.parts).sort((a,b)=>a.pn.localeCompare(b.pn)).map(p=>[p.pn,p.bHours,p.hours,cnt[p.pn]||0])});
+  sh.push({name:'Parts',cols:[{h:'Part Number',w:14,t:T},{h:'Baseline Hours',w:12,t:N},{h:'Hours',w:10,t:N},{h:'Tags',w:7,t:N},{h:'Tags With Actual Hours',w:12,t:N},{h:'Actual Hours (Average)',w:12,t:N}],rows:Object.values(S.parts).sort((a,b)=>a.pn.localeCompare(b.pn)).map(p=>{const a=actualOf(p.pn);return[p.pn,p.bHours,p.hours,cnt[p.pn]||0,a.n||null,a.n?r1(a.avg):null]})});
   sh.push({name:'Calendar',cols:[{h:'Date',w:13,t:D},{h:'Reason',w:36,t:T}],rows:S.cal.map(c=>[c.dn,c.reason])});
   sh.push({name:'Changes',cols:[{h:'When',w:18,t:T},{h:'Action',w:18,t:T},{h:'Item',w:30,t:T},{h:'Field',w:24,t:T},{h:'From',w:24,t:T},{h:'To',w:24,t:T},{h:'Comment',w:40,t:T}],rows:S.changes.map(c=>[c.when,c.action,c.item,c.field,c.from,c.to,c.comment])});
   // outputs
@@ -1008,8 +1026,8 @@ function buildProjectXlsx(){
       const recvId=add({name:'Receive',lvl:3,dur:'15 mins',pr:recvPred,ct:!recvDone&&t.fRecv!=null?'Start No Earlier Than':null,cd:!recvDone&&t.fRecv!=null?t.fRecv:null,af:recvA,as:recvA,pc:recvDone?100:0,t1:`${t.tag} Receive`,s1:c.recv,notes:factory?'Factory order: receipt is the delivery milestone':''});
       const dur=inst?(t.oStart!=null&&t.oFinish!=null?Math.max(1,wdBetween(t.oStart,t.oFinish)):1):Math.max(1,(C.rows[r.id]||{}).dur||1);
       const instPred=[`${recvId}FS+${st.buffer} edays`];if(r&&r.ms&&msId[r.ms])instPred.push(String(msId[r.ms]));
-      const instId=add({name:'Install',lvl:3,dur:dur+'d',pr:instPred.join(','),ct:inst?null:'Start No Earlier Than',cd:inst?null:c.start,af:t.inst,pc:inst?100:0,t1:`${t.tag} Install`,s1:inst?null:c.start,f1:c.finish,bs:inst?t.oStart:(r?r.bStart:null),bf:inst?t.oFinish:(r?r.bFinish:null),work:hoursOf(S,t)});
-      add({name:'Engineer Reviewed',lvl:3,dur:st.revDur>0?st.revDur+'d':'0d',ms:st.revDur>0?'No':'Yes',f1:c.revEnd,pr:`${instId}FS+${st.revGap} edays,${revMs}`,ct:t.rev==null&&t.fRev!=null?'Start No Earlier Than':null,cd:t.rev==null&&t.fRev!=null?t.fRev:null,af:t.rev,as:t.rev,pc:t.rev!=null?100:0,t1:`${t.tag} Engineer Reviewed`,s1:c.review});
+      const instId=add({name:'Install',lvl:3,dur:dur+'d',pr:instPred.join(','),ct:inst?null:'Start No Earlier Than',cd:inst?null:c.start,af:t.inst,as:inst?(t.ist!=null&&t.ist<=t.inst?t.ist:null):(t.pct>0?(t.ist??null):null),pc:inst?100:(t.pct||0),t1:`${t.tag} Install`,s1:inst?null:c.start,f1:c.finish,bs:inst?t.oStart:(r?r.bStart:null),bf:inst?t.oFinish:(r?r.bFinish:null),work:hoursOf(S,t)});
+      add({name:'Engineer Reviewed',lvl:3,dur:st.revDur>0?st.revDur+'d':'0d',ms:st.revDur>0?'No':'Yes',f1:c.revEnd,pr:`${instId}FS+${st.revGap} edays,${revMs}`,ct:t.rev==null&&t.fRev!=null?'Start No Earlier Than':null,cd:t.rev==null&&t.fRev!=null?t.fRev:null,af:t.rev,as:t.rev,pc:t.rev!=null?100:(t.revPct||0),t1:`${t.tag} Engineer Reviewed`,s1:c.review});
     }
   }
   const cols=[{h:'ID',w:6,t:N},{h:'Name',w:46,t:T},{h:'Outline Level',w:8,t:N},{h:'Duration',w:10,t:T},{h:'Predecessors',w:22,t:T},{h:'Constraint Type',w:20,t:T},{h:'Constraint Date',w:13,t:D},{h:'Actual Start',w:12,t:D},{h:'Actual Finish',w:12,t:D},{h:'% Complete',w:9,t:N},{h:'Milestone',w:9,t:T},{h:'Text1',w:30,t:T},{h:'Start1',w:12,t:D},{h:'Finish1',w:12,t:D},{h:'Baseline Start',w:12,t:D},{h:'Baseline Finish',w:12,t:D},{h:'Number1',w:9,t:N},{h:'Notes',w:40,t:T}];
@@ -1025,6 +1043,80 @@ function buildProjectXlsx(){
     ['Durations',`Install durations are working days. Request and Receive are 15-minute tasks. Engineer Reviewed is a ${st.revDur}-working-day task${st.revDur>0?'':' (0 = milestone)'}. Milestones are 0 days.`]];
   return writeXlsx([{name:'Read Me',cols:[{h:'Install Path',w:28,t:T},{h:'',w:120,t:T}],rows:readme},{name:'Tasks',cols,rows},{name:'Calendar',cols:[{h:'Non-working date',w:16,t:D},{h:'Reason',w:36,t:T}],rows:S.cal.map(c=>[c.dn,c.reason])}]);
 }
+/* ============ actual effort (Rev 0.4) ============ */
+function askEffort(tags){const card=document.getElementById('updCard');const est=t=>hoursOf(S,t);const tot=tags.reduce((a,t)=>a+est(t),0);
+  card.innerHTML=`<h2>How long did it take?</h2><p class="note">Optional. ${tags.length>1?`${tags.length} tags, estimate ${nf(tot)} h in total.`:`${esc(tags[0].tag)} · part ${esc(tags[0].part)} · estimate ${r1(est(tags[0]))} h.`} The real hours build up figures per part number (Parts tab) for better estimates. They don’t change the schedule.</p>
+   <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn" data-ef="1">As estimated</button><button class="btn" data-ef="0.5">About half</button><button class="btn" data-ef="2">About double</button></div>
+   <div class="row"><label>Or type the hours${tags.length>1?' (each tag)':''}</label><input type="number" id="efH" min="0" step="0.5" style="width:7em"><button class="btn" id="efGo">Save hours</button></div>
+   <div class="actions"><button class="btn" id="efSkip">Skip</button></div>`;
+  const done=f=>{commit(()=>{for(const t of tags){const v=f(t);log('Actual effort',t.tag,'Actual hours',t.ah??'',r1(v));t.ah=v}});document.getElementById('mUpd').classList.remove('on');toast('Saved')};
+  card.querySelectorAll('[data-ef]').forEach(b=>b.onclick=()=>done(t=>Math.round(est(t)*(+b.dataset.ef)*2)/2));
+  card.querySelector('#efGo').onclick=()=>{const v=+card.querySelector('#efH').value;if(!(v>=0)||card.querySelector('#efH').value===''){toast('Type the hours');return}done(()=>v)};
+  card.querySelector('#efSkip').onclick=()=>{document.getElementById('mUpd').classList.remove('on');toast('Saved')};
+  document.getElementById('mUpd').classList.add('on')}
+
+/* ============ Microsoft Project: import and update export (Rev 0.4) ============ */
+const MSP_STEPS={Request:'Request',Receive:'Receipt',Install:'Install','Engineer Reviewed':'Engineer Review'};
+function anyDate(v){if(v==null||v==='')return null;if(typeof v==='number')return toDn(v);let s=String(v).trim();if(!s||/^(NA|N\/A|—|-)$/i.test(s))return null;
+  s=s.replace(/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+/i,'').replace(/\s+\d{1,2}:\d{2}(:\d{2})?\s*(am|pm)?$/i,'').trim();
+  let m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);if(m)return isoToDn(`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`);
+  m=/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(s);if(m){let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;let mo=a,d=b;if(a>12&&b<=12){mo=b;d=a}return isoToDn(`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`)}
+  const t=Date.parse(s);if(!isNaN(t)){const dt=new Date(t);return isoToDn(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`)}return null}
+function anyPct(v){if(v==null||v==='')return null;let n=typeof v==='number'?v:parseFloat(String(v).replace('%',''));if(!isFinite(n))return null;if(typeof v==='number'&&n>0&&n<1&&!Number.isInteger(n))n*=100;return Math.max(0,Math.min(100,Math.round(n)))}
+function readProjectRows(sh){const norm=k=>String(k||'').toLowerCase().replace(/[^a-z0-9%]/g,'');
+  for(const name of Object.keys(sh)){const grid=sh[name];if(!grid||!grid.length)continue;let hr=-1;for(let i=0;i<Math.min(6,grid.length);i++)if((grid[i]||[]).some(c=>norm(c)==='text1')){hr=i;break}if(hr<0)continue;
+    const head=grid[hr].map(norm);const ix=k=>head.findIndex(h=>k.includes(h));
+    const I={t1:ix(['text1']),name:ix(['name','taskname']),start:ix(['start']),finish:ix(['finish']),as:ix(['actualstart']),af:ix(['actualfinish']),pct:ix(['%complete','percentcomplete','complete%']),notes:ix(['notes'])};
+    const out=[];for(let i=hr+1;i<grid.length;i++){const r=grid[i]||[];const t1=r[I.t1]==null?'':String(r[I.t1]).trim();if(!t1)continue;const g=k=>I[k]>=0?r[I[k]]:null;
+      out.push({t1,name:g('name'),start:anyDate(g('start')),finish:anyDate(g('finish')),as:anyDate(g('as')),af:anyDate(g('af')),pct:anyPct(g('pct')),notes:g('notes')==null?null:String(g('notes')).trim(),has:{start:I.start>=0,finish:I.finish>=0,pct:I.pct>=0,notes:I.notes>=0}})}
+    return{sheet:name,rows:out}}
+  return null}
+function planProjectImport(rows){const byTag={},byTid={};S.tags.forEach(t=>{byTag[t.tag]=t;byTid[t.tid]=t});const ch=[];let matched=0;const unmatched=[];const rowWin={};
+  const add=(cat,t,field,from,to,apply)=>ch.push({cat,item:t.tag,field,from,to,apply});
+  for(const p of rows){const m=/^(.*)\s+(Request|Receive|Install|Engineer Reviewed)$/.exec(p.t1);
+    if(!m){const t=byTid[p.t1];if(t){matched++;if(p.has.notes&&p.notes!=null&&p.notes!==(t.comment||'')&&p.notes!=='')add('Notes',t,'Comment',t.comment,p.notes,()=>{t.comment=p.notes})}else unmatched.push(p.t1);continue}
+    const t=byTag[m[1]];if(!t){unmatched.push(p.t1);continue}matched++;const step=m[2];const c=C.tags[t.tag]||{};const done=p.pct===100||(p.af!=null&&(p.pct==null||p.pct===100));
+    if(step==='Request'||step==='Receive'){const f=step==='Request'?'req':'recv';const ad=p.af??p.as;
+      if(done&&ad!=null){if(t[f]!==ad)add('Actuals',t,step==='Request'?'Requested (actual)':'Received (actual)',dnToIso(t[f]),dnToIso(ad),()=>{t[f]=ad;if(f==='req'&&t.status==='Not Started')t.status='Requested';if(f==='recv'&&t.status!=='Installed')t.status='WIP';t[f==='req'?'fReq':'fRecv']=null})}
+      else if(t[f]==null&&p.start!=null&&c[f]!=null&&p.start!==c[f]&&!(f==='req'&&c.reqK==='none'))add('Plan',t,step==='Request'?'Request (forecast)':'Receipt (forecast)',dnToIso(c[f]),dnToIso(p.start),()=>{t[f==='req'?'fReq':'fRecv']=p.start})}
+    else if(step==='Install'){
+      if(done&&p.af!=null){if(t.status!=='Installed'||t.inst!==p.af)add('Actuals',t,'Installed (actual)',t.status==='Installed'?dnToIso(t.inst):t.status,dnToIso(p.af),()=>{t.inst=p.af;t.status='Installed';t.pct=0;if(p.as!=null&&p.as<=p.af)t.ist=p.as;else if(t.ist!=null&&t.ist>p.af)t.ist=p.af})}
+      else if(t.status!=='Installed'){if(p.pct!=null&&p.pct>0&&p.pct<100&&p.pct!==(t.pct||0))add('Actuals',t,'Install % complete',t.pct||0,p.pct,()=>{t.pct=p.pct;t.ist=p.as??t.ist??TODAY;t.status='WIP'});
+        if(p.start!=null&&p.finish!=null&&t.row){const w=rowWin[t.row]=rowWin[t.row]||{s:Infinity,f:-Infinity};w.s=Math.min(w.s,p.start);w.f=Math.max(w.f,p.finish)}}}
+    else{if(done&&p.af!=null){if(t.rev!==p.af)add('Actuals',t,'Engineer reviewed (actual)',dnToIso(t.rev),dnToIso(p.af),()=>{t.rev=p.af;t.fRev=null;t.revPct=0})}
+      else if(t.rev==null){if(p.pct!=null&&p.pct>0&&p.pct<100&&p.pct!==(t.revPct||0))add('Actuals',t,'Review % complete',t.revPct||0,p.pct,()=>{t.revPct=p.pct});if(p.start!=null&&c.review!=null&&p.start!==c.review)add('Plan',t,'Engineer review (forecast)',dnToIso(c.review),dnToIso(p.start),()=>{t.fRev=p.start})}}
+    if(p.has.notes&&p.notes&&p.notes!==(t.comment||'')&&!/^Factory order/.test(p.notes))add('Notes',t,'Comment',t.comment,p.notes,()=>{t.comment=p.notes})}
+  for(const rid in rowWin){const r=rowById(rid);const w=rowWin[rid];if(!r||!isFinite(w.s))continue;const s=nextWork(w.s),f=Math.max(s,w.f);if(s!==r.start||f!==r.finish)ch.push({cat:'Plan',item:r.name,field:'Install window',from:`${dnToIso(r.start)} – ${dnToIso(r.finish)}`,to:`${dnToIso(s)} – ${dnToIso(f)}`,apply:()=>{r.start=s;r.finish=f}})}
+  // keep one note per tag (last wins)
+  const seen=new Set();for(let i=ch.length-1;i>=0;i--){if(ch[i].cat!=='Notes')continue;if(seen.has(ch[i].item))ch.splice(i,1);else seen.add(ch[i].item)}
+  return{ch,matched,unmatched}}
+async function importProjectFile(file){try{const sh=await readXlsx(await file.arrayBuffer());const P=readProjectRows(sh);
+  if(!P){toast('No “Text1” column found. Export from Project with the Text1 field included.');return}
+  const plan=planProjectImport(P.rows);showProjectImport(plan,file.name,P)}catch(e){console.error(e);toast('Could not read that file: '+e.message)}}
+function showProjectImport(plan,fname,P){const card=document.getElementById('updCard');const n=c=>plan.ch.filter(x=>x.cat===c).length;
+  card.innerHTML=`<h2>Import from Microsoft Project</h2><p class="note">${esc(fname)} · sheet “${esc(P.sheet)}” · ${P.rows.length} rows with Text1 · ${plan.matched} matched to Install Path${plan.unmatched.length?` · ${plan.unmatched.length} not recognised`:''}. Nothing changes until you press Import, and you can Undo it.</p>
+   ${plan.ch.length?`<div class="row" style="flex-wrap:wrap;gap:14px"><label class="choice"><input type="checkbox" class="pjCat" value="Actuals" checked> Actuals (${n('Actuals')})</label><label class="choice"><input type="checkbox" class="pjCat" value="Plan" checked> Plan dates (${n('Plan')})</label><label class="choice"><input type="checkbox" class="pjCat" value="Notes" checked> Notes → comments (${n('Notes')})</label></div>
+   <div class="taglist" style="max-height:44vh"><table class="inner"><thead><tr><th>What</th><th>Item</th><th>Field</th><th>Now</th><th>From Project</th></tr></thead><tbody>${plan.ch.slice(0,400).map(c=>`<tr><td>${c.cat}</td><td><b>${esc(c.item)}</b></td><td>${esc(c.field)}</td><td class="sub">${esc(String(c.from??''))}</td><td>${esc(String(c.to??''))}</td></tr>`).join('')}</tbody></table></div>${plan.ch.length>400?`<p class="note">Showing 400 of ${plan.ch.length}.</p>`:''}`:'<p><b>No differences found.</b> Install Path already matches the Project file.</p>'}
+   ${plan.unmatched.length?`<p class="note">Not recognised (first 10): ${plan.unmatched.slice(0,10).map(esc).join(', ')}</p>`:''}
+   <p class="note">Plan dates from Project become forecasts (request, receipt, review) or move the install window of a row (earliest start to latest finish of its tags). Actuals and % complete come from Actual Start, Actual Finish and % Complete.</p>
+   <div class="actions"><button class="btn" data-close>Cancel</button>${plan.ch.length?'<button class="btn" id="pjGo">Import</button>':''}</div>`;
+  const go=card.querySelector('#pjGo');if(go)go.onclick=()=>{const cats=new Set([...card.querySelectorAll('.pjCat:checked')].map(x=>x.value));const pick=plan.ch.filter(c=>cats.has(c.cat));if(!pick.length){toast('Tick at least one kind of change');return}
+    commit(()=>{for(const c of pick){c.apply();log('Project import',c.item,c.field,c.from,c.to)}});document.getElementById('mUpd').classList.remove('on');toast(`Imported ${pick.length} change(s) from Microsoft Project`)};
+  document.getElementById('mUpd').classList.add('on')}
+function buildProjectUpdate(){const T='s',D='d',N='n';const rows=[];const st=S.settings;
+  for(const t of [...S.tags].sort((a,b)=>a.tag.localeCompare(b.tag))){const inst=t.status==='Installed';const r=rowById(t.row);const factory=!!(r&&r.ms)&&t.req==null;
+    const recvA=t.recv??(inst?t.inst:null),reqA=t.req??recvA;
+    if(t.comment)rows.push([t.tid,`${t.tag} ${t.name}`,null,null,null,t.comment]);
+    if(!factory&&reqA!=null)rows.push([`${t.tag} Request`,'Request',reqA,reqA,100,null]);
+    if(recvA!=null)rows.push([`${t.tag} Receive`,'Receive',recvA,recvA,100,null]);
+    if(inst)rows.push([`${t.tag} Install`,'Install',t.ist!=null&&t.ist<=t.inst?t.ist:null,t.inst,100,null]);else if(t.pct>0)rows.push([`${t.tag} Install`,'Install',t.ist??TODAY,null,t.pct,null]);
+    if(t.rev!=null)rows.push([`${t.tag} Engineer Reviewed`,'Engineer Reviewed',t.rev,t.rev,100,null]);else if(t.revPct>0)rows.push([`${t.tag} Engineer Reviewed`,'Engineer Reviewed',TODAY,null,t.revPct,null])}
+  const readme=[['Microsoft Project update',`Actuals and comments from Install Path ${BUILD}, status date ${fmtY(st.statusDate)}, made ${stamp()}. ${rows.length} rows. Only actuals (Actual Start, Actual Finish, % Complete) and comments (Notes) are included; no plan dates.`],
+    ['How to merge','In the Project file made from the Install Path export: File > Open > choose this .xlsx > Import Wizard > New map > “Merge the data into the active project” > Tasks > source sheet “Updates”. Map Text1 → Text1, Actual Start → Actual Start, Actual Finish → Actual Finish, % Complete → % Complete, Notes → Notes, and Name → (not mapped). Select the Text1 row and press “Set Merge Key”. Finish.'],
+    ['Matching','Text1 holds the fixed task code written by the Install Path export: the tag code (e.g. T001) for a tag’s notes, and “<tag> Request / Receive / Install / Engineer Reviewed” for steps. Rows whose Text1 isn’t in the Project file are skipped by Project.'],
+    ['Notes','Notes replace the task’s existing notes in Project. Leave the Notes mapping out if you’d rather keep Project’s notes.']];
+  return writeXlsx([{name:'Read Me',cols:[{h:'Install Path',w:26,t:T},{h:'',w:120,t:T}],rows:readme},{name:'Updates',cols:[{h:'Text1',w:26,t:T},{h:'Name',w:40,t:T},{h:'Actual Start',w:12,t:D},{h:'Actual Finish',w:12,t:D},{h:'% Complete',w:10,t:N},{h:'Notes',w:50,t:T}],rows}])}
+async function doProjectUpdate(){if(!S)return;try{const ok=await dlBlob(buildProjectUpdate(),`Install Path - MS Project Update - ${fileStamp()}.xlsx`);if(ok!==false)toast('Project update file ready')}catch(e){console.error(e);toast('Export failed: '+e.message)}}
 async function doProjectExport(){if(!S)return;try{const ok=await dlBlob(buildProjectXlsx(),`Install Path - MS Project Import - ${fileStamp()}.xlsx`);if(ok!==false)toast('Microsoft Project file ready')}catch(e){console.error(e);toast('Export failed: '+e.message)}}
 let DIRTY=false,LASTSAVE='';
 function setDirty(v){DIRTY=v;const d=document.getElementById('dirty');if(d)d.hidden=!v}
@@ -1061,7 +1153,9 @@ function theme(t){if(t)document.documentElement.setAttribute('data-theme',t);try
   document.getElementById('ldGo').onclick=()=>{document.getElementById('mLoad').classList.remove('on');file.click()};
   document.getElementById('ldSave').onclick=async()=>{document.getElementById('mLoad').classList.remove('on');await saveAs()};
   document.getElementById('saveas').onclick=saveAs;
-  document.getElementById('msp').onclick=doProjectExport;
+  document.getElementById('msp').onclick=doProjectExport;document.getElementById('mspUpd').onclick=doProjectUpdate;
+  document.getElementById('mspImp').onclick=()=>{const f=document.getElementById('mspFile');f.value='';f.click()};document.getElementById('mspFile').onchange=e=>{if(e.target.files[0])importProjectFile(e.target.files[0])};
+  {const mm=document.getElementById('mspMenu'),mb=document.getElementById('mspBtn');mb.onclick=e=>{e.stopPropagation();mm.hidden=!mm.hidden;mb.setAttribute('aria-expanded',String(!mm.hidden))};mm.addEventListener('click',()=>{mm.hidden=true});document.addEventListener('click',e=>{if(!e.target.closest('.menuwrap'))mm.hidden=true});document.addEventListener('keydown',e=>{if(e.key==='Escape')mm.hidden=true})}
   document.getElementById('stepsel').addEventListener('click',e=>{const b=e.target.closest('.seg');if(!b)return;STEP=b.dataset.step;try{localStorage.setItem('installpath.step',STEP)}catch(x){}if(S){renderGantt();renderCharts()}});
   const swbsKey=r=>{const src=r.type==='System'?r.swbs:(r.name.match(/^[\d.]+-[A-Z]?\d+/)||[r.swbs])[0];const m=String(src).match(/^(\d+)\.(\d+)(?:-([A-Z]?)(\d+))?/);return m?[+m[1],+m[2],r.type==='System'?0:1,m[3]||'',m[4]?+m[4]:0]:[9999,0,0,'',0]};
   document.getElementById('sortSwbs').onclick=()=>{if(!S)return;const sorted=[...S.rows].sort((a,b)=>{const x=swbsKey(a),y=swbsKey(b);for(let i=0;i<5;i++){if(x[i]<y[i])return-1;if(x[i]>y[i])return 1}return C.rows[a.id].es-C.rows[b.id].es||a.name.localeCompare(b.name)});
